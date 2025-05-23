@@ -2,13 +2,22 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/printchard/tiny-lang/lexer"
+	"github.com/printchard/tiny-lang/parser"
 )
 
 func main() {
-	lex := lexer.New(`let x := -5 + y * (3 + 2)
-print x`)
+	input, err := os.ReadFile("input.tiny")
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return
+	}
+	lex := lexer.New(string(input))
 	tokens := lex.Tokenize()
 	fmt.Println(tokens)
+
+	p := parser.New(tokens)
+	p.Parse()
 }
