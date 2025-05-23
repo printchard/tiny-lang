@@ -41,82 +41,129 @@ func (p *Parser) match(expected lexer.TokenType) bool {
 	return false
 }
 
-func (p *Parser) parseStatement() {
+func (p *Parser) parseStatement() Statement {
 	if p.peek() == lexer.LetToken {
-		p.parseDeclareStatement()
-	} else if p.peek() == lexer.AssignToken {
-		p.parseAssignStatement()
+		return p.parseDeclareStatement()
+	} else if p.peek() == lexer.IdentToken {
+		return p.parseAssignStatement()
 	} else if p.peek() == lexer.PrintToken {
-		p.parsePrintStatement()
+		return p.parsePrintStatement()
 	} else {
 		p.error()
 	}
+	return nil
 }
 
-func (p *Parser) parseDeclareStatement() {
+func (p *Parser) parseDeclareStatement() Statement {
 	p.match(lexer.LetToken)
+	identToken := p.tokens[p.current]
 	p.match(lexer.IdentToken)
 	p.match(lexer.DeclareToken)
-	p.parseExpression()
+	return &DeclarationStatement{
+		Identifier: &Identifier{Name: identToken.Literal},
+		Value:      p.parseExpression(),
+	}
 }
 
-func (p *Parser) parseAssignStatement() {
+func (p *Parser) parseAssignStatement() Statement {
+	identToken := p.tokens[p.current]
 	p.match(lexer.IdentToken)
 	p.match(lexer.AssignToken)
-	p.parseExpression()
+	return &AssignmentStatement{
+		Identifier: &Identifier{Name: identToken.Literal},
+		Value:      p.parseExpression(),
+	}
 }
 
-func (p *Parser) parsePrintStatement() {
+func (p *Parser) parsePrintStatement() Statement {
 	p.match(lexer.PrintToken)
-	p.parseExpression()
+	return &PrintStatement{
+		Expression: p.parseExpression(),
+	}
 }
 
-func (p *Parser) parseExpression() {
-	p.parseTerm()
+func (p *Parser) parseExpression() Expression {
+	left := p.parseTerm()
 	for p.peek() == lexer.PlusToken || p.peek() == lexer.MinusToken {
-		p.match(p.peek())
-		p.parseTerm()
+		op := p.peek()
+		p.match(op)
+		right := p.parseTerm()
+		left = &BinaryExpression{
+			Left:  left,
+			Op:    op,
+			Right: right,
+		}
 	}
+	return left
 }
 
-func (p *Parser) parseTerm() {
-	p.parseUnary()
+func (p *Parser) parseTerm() Expression {
+	left := p.parseUnary()
 	for p.peek() == lexer.MultiplyToken || p.peek() == lexer.DivideToken {
-		p.match(p.peek())
-		p.parseUnary()
+		op := p.peek()
+		p.match(op)
+		right := p.parseUnary()
+		left = &BinaryExpression{
+			Left:  left,
+			Op:    op,
+			Right: right,
+		}
 	}
+	return left
 }
 
-func (p *Parser) parseUnary() {
+func (p *Parser) parseUnary() Expression {
 	if p.peek() == lexer.MinusToken {
 		p.match(lexer.MinusToken)
-		p.parseUnary()
+		return &UnaryExpression{
+			Op:    lexer.MinusToken,
+			Right: p.parseUnary(),
+		}
 	} else {
-		p.parseFactor()
+		return p.parseFactor()
 	}
 }
 
-func (p *Parser) parseFactor() {
+func (p *Parser) parseFactor() Expression {
 	if p.peek() == lexer.LeftParenToken {
 		p.match(lexer.LeftParenToken)
-		p.parseExpression()
+		expr := p.parseExpression()
 		p.match(lexer.RightParenToken)
+		return expr
 	} else if p.peek() == lexer.NumberToken {
 		p.match(lexer.NumberToken)
+		value, err := strconv.ParseFloat(p.tokens[p.current-1].Literal, 64)
+		if err != nil {
+			p.error()
+		}
+		return &NumberLiteral{Value: value}
 	} else {
 		p.match(lexer.IdentToken)
+		return &Identifier{Name: p.tokens[p.current-1].Literal}
 	}
 }
 
-func (p *Parser) parseProgram() {
+func (p *Parser) parseProgram() []Statement {
+	statements := []Statement{}
 	for p.current < len(p.tokens) {
 		if p.peek() == lexer.EOFToken {
 			p.error()
 		}
-		p.parseStatement()
+		stmt := p.parseStatement()
+		if stmt != nil {
+			statements = append(statements, stmt)
+		}
 	}
+	return statements
 }
 
-func (p *Parser) Parse() {
-	p.parseProgram()
+func (p *Parser) Parse() []Statement {
+	return p.parseProgram()
+}
+
+func (p *Parser) Execute() {
+	env := &Environment{Variables: make(map[string]float64)}
+	for _, stmt := range p.Parse() {
+		stmt.Execute(env)
+	}
 }

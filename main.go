@@ -9,15 +9,20 @@ import (
 )
 
 func main() {
-	input, err := os.ReadFile("input.tiny")
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: tiny-lang <input-file>")
+		return
+	}
+
+	inputFile := os.Args[1]
+	input, err := os.ReadFile(inputFile)
 	if err != nil {
 		fmt.Println("Error reading file:", err)
 		return
 	}
 	lex := lexer.New(string(input))
 	tokens := lex.Tokenize()
-	fmt.Println(tokens)
 
 	p := parser.New(tokens)
-	p.Parse()
+	p.Execute()
 }

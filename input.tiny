@@ -1,3 +1,9 @@
-let x := -5 + y + 4 * (3 + 2)
+let y := (2 + 3) * 2 / 34
+let x := 4 + y
+
+print y
+print x
+
+x = 12
 
 print x
