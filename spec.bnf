@@ -1,0 +1,17 @@
+program = { statement }
+
+statement = declare-statement | assign-statement | print-statement
+
+declare-statement = "let" identifier ":=" expression
+
+assign-statement = identifier "=" expression
+
+print-statement = "print" expression
+
+expression = term { ("+" | "-") term }
+
+term = unary { ("*" | "/") unary }
+
+unary = "-" unary | factor
+
+factor = "(" expression ")" | number | identifier
