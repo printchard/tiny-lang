@@ -23,10 +23,15 @@ func main() {
 		return
 	}
 	lex := lexer.New(string(input))
-	tokens := lex.Tokenize()
+	tokens, err := lex.Tokenize()
+	if err != nil {
+		panic(err)
+	}
 
 	p := parser.New(tokens)
-	p.Execute(nil)
+	if err := p.Execute(nil); err != nil {
+		panic(err)
+	}
 }
 
 func repl() {
@@ -50,9 +55,16 @@ func repl() {
 		}
 
 		lex := lexer.New(input)
-		tokens := lex.Tokenize()
+		tokens, err := lex.Tokenize()
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
 
 		p := parser.New(tokens)
-		p.Execute(&env)
+		if err := p.Execute(&env); err != nil {
+			fmt.Println(err)
+			continue
+		}
 	}
 }

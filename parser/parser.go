@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/printchard/tiny-lang/lexer"
@@ -17,12 +18,10 @@ func New(tokens []lexer.Token) *Parser {
 	}
 }
 
-func (p *Parser) error() {
-	if p.current < len(p.tokens) {
-		panic("unexpected token: " + p.tokens[p.current].Literal + " at " + strconv.Itoa(p.current))
-	} else {
-		panic("unexpected end of input")
-	}
+func (p *Parser) error(msg string) error {
+	tok := p.peekToken()
+	return fmt.Errorf("Parse error at line %d, column %d: %s",
+		tok.Line, tok.Column, msg)
 }
 
 func (p *Parser) peek() lexer.TokenType {
@@ -32,16 +31,25 @@ func (p *Parser) peek() lexer.TokenType {
 	return p.tokens[p.current].Type
 }
 
-func (p *Parser) match(expected lexer.TokenType) bool {
-	if p.peek() == expected {
-		p.current++
-		return true
+func (p *Parser) peekToken() lexer.Token {
+	if p.current >= len(p.tokens) {
+		return lexer.Token{}
 	}
-	p.error()
-	return false
+	return p.tokens[p.current]
 }
 
-func (p *Parser) parseStatement() Statement {
+func (p *Parser) match(expected lexer.TokenType) error {
+	if p.current >= len(p.tokens) {
+		return p.error("unexpected EOF")
+	}
+	if p.peek() == expected {
+		p.current++
+		return nil
+	}
+	return p.error(fmt.Sprintf("expected %s, found %s", expected, p.peek()))
+}
+
+func (p *Parser) parseStatement() (Statement, error) {
 	if p.peek() == lexer.LetToken {
 		return p.parseDeclareStatement()
 	} else if p.peek() == lexer.IdentToken {
@@ -49,124 +57,189 @@ func (p *Parser) parseStatement() Statement {
 	} else if p.peek() == lexer.PrintToken {
 		return p.parsePrintStatement()
 	} else {
-		p.error()
+		return nil, p.error("unexpected token")
 	}
-	return nil
 }
 
-func (p *Parser) parseDeclareStatement() Statement {
-	p.match(lexer.LetToken)
-	identToken := p.tokens[p.current]
-	p.match(lexer.IdentToken)
-	p.match(lexer.DeclareToken)
+func (p *Parser) parseDeclareStatement() (Statement, error) {
+	if err := p.match(lexer.LetToken); err != nil {
+		return nil, err
+	}
+	identToken := p.peekToken()
+	if err := p.match(lexer.IdentToken); err != nil {
+		return nil, err
+	}
+	if err := p.match(lexer.DeclareToken); err != nil {
+		return nil, err
+	}
+
+	exp, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
 	return &DeclarationStatement{
 		Identifier: &Identifier{Name: identToken.Literal},
-		Value:      p.parseExpression(),
-	}
+		Value:      exp,
+	}, nil
 }
 
-func (p *Parser) parseAssignStatement() Statement {
-	identToken := p.tokens[p.current]
-	p.match(lexer.IdentToken)
-	p.match(lexer.AssignToken)
+func (p *Parser) parseAssignStatement() (Statement, error) {
+	identToken := p.peekToken()
+	if err := p.match(lexer.IdentToken); err != nil {
+		return nil, err
+	}
+	if err := p.match(lexer.AssignToken); err != nil {
+		return nil, err
+	}
+	exp, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
 	return &AssignmentStatement{
 		Identifier: &Identifier{Name: identToken.Literal},
-		Value:      p.parseExpression(),
-	}
+		Value:      exp,
+	}, nil
 }
 
-func (p *Parser) parsePrintStatement() Statement {
-	p.match(lexer.PrintToken)
+func (p *Parser) parsePrintStatement() (Statement, error) {
+	if err := p.match(lexer.PrintToken); err != nil {
+		return nil, err
+	}
+	exp, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
 	return &PrintStatement{
-		Expression: p.parseExpression(),
-	}
+		Expression: exp,
+	}, nil
 }
 
-func (p *Parser) parseExpression() Expression {
-	left := p.parseTerm()
+func (p *Parser) parseExpression() (Expression, error) {
+	left, err := p.parseTerm()
+	if err != nil {
+		return nil, err
+	}
 	for p.peek() == lexer.PlusToken || p.peek() == lexer.MinusToken {
 		op := p.peek()
-		p.match(op)
-		right := p.parseTerm()
+		if err := p.match(op); err != nil {
+			return nil, err
+		}
+		right, err := p.parseTerm()
+		if err != nil {
+			return nil, err
+		}
 		left = &BinaryExpression{
 			Left:  left,
 			Op:    op,
 			Right: right,
 		}
 	}
-	return left
+	return left, nil
 }
 
-func (p *Parser) parseTerm() Expression {
-	left := p.parseUnary()
+func (p *Parser) parseTerm() (Expression, error) {
+	left, err := p.parseUnary()
+	if err != nil {
+		return nil, err
+	}
 	for p.peek() == lexer.MultiplyToken || p.peek() == lexer.DivideToken {
 		op := p.peek()
-		p.match(op)
-		right := p.parseUnary()
+		if err := p.match(op); err != nil {
+			return nil, err
+		}
+		right, err := p.parseUnary()
+		if err != nil {
+			return nil, err
+		}
 		left = &BinaryExpression{
 			Left:  left,
 			Op:    op,
 			Right: right,
 		}
 	}
-	return left
+	return left, nil
 }
 
-func (p *Parser) parseUnary() Expression {
+func (p *Parser) parseUnary() (Expression, error) {
 	if p.peek() == lexer.MinusToken {
-		p.match(lexer.MinusToken)
+		if err := p.match(lexer.MinusToken); err != nil {
+			return nil, err
+		}
+		right, err := p.parseUnary()
+		if err != nil {
+			return nil, err
+		}
 		return &UnaryExpression{
 			Op:    lexer.MinusToken,
-			Right: p.parseUnary(),
-		}
+			Right: right,
+		}, nil
 	} else {
 		return p.parseFactor()
 	}
 }
 
-func (p *Parser) parseFactor() Expression {
+func (p *Parser) parseFactor() (Expression, error) {
 	if p.peek() == lexer.LeftParenToken {
-		p.match(lexer.LeftParenToken)
-		expr := p.parseExpression()
-		p.match(lexer.RightParenToken)
-		return expr
+		if err := p.match(lexer.LeftParenToken); err != nil {
+			return nil, err
+		}
+		expr, err := p.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.match(lexer.RightParenToken); err != nil {
+			return nil, err
+		}
+		return expr, nil
 	} else if p.peek() == lexer.NumberToken {
-		p.match(lexer.NumberToken)
+		if err := p.match(lexer.NumberToken); err != nil {
+			return nil, err
+		}
 		value, err := strconv.ParseFloat(p.tokens[p.current-1].Literal, 64)
 		if err != nil {
-			p.error()
+			return nil, err
 		}
-		return &NumberLiteral{Value: value}
+		return &NumberLiteral{Value: value}, nil
 	} else {
-		p.match(lexer.IdentToken)
-		return &Identifier{Name: p.tokens[p.current-1].Literal}
+		if err := p.match(lexer.IdentToken); err != nil {
+			return nil, err
+		}
+		return &Identifier{Name: p.tokens[p.current-1].Literal}, nil
 	}
 }
 
-func (p *Parser) parseProgram() []Statement {
+func (p *Parser) parseProgram() ([]Statement, error) {
 	statements := []Statement{}
 	for p.current < len(p.tokens) {
 		if p.peek() == lexer.EOFToken {
-			p.error()
+			return nil, p.error("unexpected EOF")
 		}
-		stmt := p.parseStatement()
+		stmt, err := p.parseStatement()
+		if err != nil {
+			return nil, err
+		}
 		if stmt != nil {
 			statements = append(statements, stmt)
 		}
 	}
-	return statements
+	return statements, nil
 }
 
-func (p *Parser) Parse() []Statement {
+func (p *Parser) Parse() ([]Statement, error) {
 	return p.parseProgram()
 }
 
-func (p *Parser) Execute(env *Environment) {
+func (p *Parser) Execute(env *Environment) error {
 	if env == nil {
 		env = &Environment{Variables: make(map[string]float64)}
 	}
 
-	for _, stmt := range p.Parse() {
+	stmts, err := p.Parse()
+	if err != nil {
+		return err
+	}
+	for _, stmt := range stmts {
 		stmt.Execute(env)
 	}
+	return nil
 }

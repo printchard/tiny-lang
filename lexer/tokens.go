@@ -54,11 +54,15 @@ func (t TokenType) String() string {
 type Token struct {
 	Type    TokenType
 	Literal string
+	Column  int
+	Line    int
 }
 
-func NewToken(t TokenType) Token {
+func NewToken(t TokenType, col, line int) Token {
 	return Token{
 		Type:    t,
 		Literal: t.String(),
+		Column:  col,
+		Line:    line,
 	}
 }
