@@ -16,12 +16,12 @@ type Node interface {
 
 type Expression interface {
 	Node
-	Eval(env *Environment) float64
+	Eval(env *Environment) (float64, error)
 }
 
 type Statement interface {
 	Node
-	Execute(env *Environment)
+	Execute(env *Environment) error
 }
 
 type NumberLiteral struct {
@@ -32,8 +32,8 @@ func (n *NumberLiteral) String() string {
 	return fmt.Sprintf("%f", n.Value)
 }
 
-func (n *NumberLiteral) Eval(env *Environment) float64 {
-	return n.Value
+func (n *NumberLiteral) Eval(env *Environment) (float64, error) {
+	return n.Value, nil
 }
 
 type Identifier struct {
@@ -44,11 +44,11 @@ func (i *Identifier) String() string {
 	return i.Name
 }
 
-func (i *Identifier) Eval(env *Environment) float64 {
+func (i *Identifier) Eval(env *Environment) (float64, error) {
 	if value, ok := env.Variables[i.Name]; ok {
-		return value
+		return value, nil
 	}
-	panic(fmt.Sprintf("undefined variable: %s", i.Name))
+	return 0, fmt.Errorf("undefined variable: %s", i.Name)
 }
 
 type BinaryExpression struct {
@@ -61,51 +61,57 @@ func (b *BinaryExpression) String() string {
 	return fmt.Sprintf("%s %s %s", b.Left.String(), b.Op, b.Right.String())
 }
 
-func (b *BinaryExpression) Eval(env *Environment) float64 {
-	left := b.Left.Eval(env)
-	right := b.Right.Eval(env)
+func (b *BinaryExpression) Eval(env *Environment) (float64, error) {
+	left, err := b.Left.Eval(env)
+	if err != nil {
+		return 0, err
+	}
+	right, err := b.Right.Eval(env)
+	if err != nil {
+		return 0, err
+	}
 
 	switch b.Op {
 	case lexer.PlusToken:
-		return left + right
+		return left + right, nil
 	case lexer.MinusToken:
-		return left - right
+		return left - right, nil
 	case lexer.MultiplyToken:
-		return left * right
+		return left * right, nil
 	case lexer.DivideToken:
-		return left / right
+		return left / right, nil
 	case lexer.EqualToken:
 		if left == right {
-			return 1
+			return 1, nil
 		}
-		return 0
+		return 0, nil
 	case lexer.NotEqualToken:
 		if left != right {
-			return 1
+			return 1, nil
 		}
-		return 0
+		return 0, nil
 	case lexer.GTToken:
 		if left > right {
-			return 1
+			return 1, nil
 		}
-		return 0
+		return 0, nil
 	case lexer.LTToken:
 		if left < right {
-			return 1
+			return 1, nil
 		}
-		return 0
+		return 0, nil
 	case lexer.GEQToken:
 		if left >= right {
-			return 1
+			return 1, nil
 		}
-		return 0
+		return 0, nil
 	case lexer.LEQToken:
 		if left <= right {
-			return 1
+			return 1, nil
 		}
-		return 0
+		return 0, nil
 	default:
-		panic(fmt.Sprintf("unknown operator: %s", b.Op))
+		return 0, fmt.Errorf("unknown operator: %s", b.Op)
 	}
 }
 
@@ -118,12 +124,16 @@ func (u *UnaryExpression) String() string {
 	return fmt.Sprintf("%s %s", u.Op, u.Right.String())
 }
 
-func (u *UnaryExpression) Eval(env *Environment) float64 {
+func (u *UnaryExpression) Eval(env *Environment) (float64, error) {
 	switch u.Op {
 	case lexer.MinusToken:
-		return -u.Right.Eval(env)
+		value, err := u.Right.Eval(env)
+		if err != nil {
+			return 0, err
+		}
+		return -value, nil
 	default:
-		panic(fmt.Sprintf("unknown operator: %s", u.Op))
+		return 0, fmt.Errorf("unknown operator: %s", u.Op)
 	}
 }
 
@@ -135,11 +145,17 @@ type DeclarationStatement struct {
 func (d *DeclarationStatement) String() string {
 	return fmt.Sprintf("let %s = %s", d.Identifier.String(), d.Value.String())
 }
-func (d *DeclarationStatement) Execute(env *Environment) {
+func (d *DeclarationStatement) Execute(env *Environment) error {
 	if _, ok := env.Variables[d.Identifier.Name]; ok {
-		panic(fmt.Sprintf("variable already declared: %s", d.Identifier.Name))
+		return fmt.Errorf("variable already declared: %s", d.Identifier.Name)
 	}
-	env.Variables[d.Identifier.Name] = d.Value.Eval(env)
+	value, err := d.Value.Eval(env)
+	if err != nil {
+		return err
+	}
+
+	env.Variables[d.Identifier.Name] = value
+	return nil
 }
 
 type AssignmentStatement struct {
@@ -151,11 +167,16 @@ func (a *AssignmentStatement) String() string {
 	return fmt.Sprintf("%s = %s", a.Identifier.String(), a.Value.String())
 }
 
-func (a *AssignmentStatement) Execute(env *Environment) {
+func (a *AssignmentStatement) Execute(env *Environment) error {
 	if _, ok := env.Variables[a.Identifier.Name]; !ok {
-		panic(fmt.Sprintf("undefined variable: %s", a.Identifier.Name))
+		return fmt.Errorf("undefined variable: %s", a.Identifier.Name)
 	}
-	env.Variables[a.Identifier.Name] = a.Value.Eval(env)
+	value, err := a.Value.Eval(env)
+	if err != nil {
+		return err
+	}
+	env.Variables[a.Identifier.Name] = value
+	return nil
 }
 
 type PrintStatement struct {
@@ -166,14 +187,18 @@ func (p *PrintStatement) String() string {
 	return fmt.Sprintf("print %s", p.Expression.String())
 }
 
-func (p *PrintStatement) Execute(env *Environment) {
-	fmt.Println(p.Expression.Eval(env))
+func (p *PrintStatement) Execute(env *Environment) error {
+	value, err := p.Expression.Eval(env)
+	if err != nil {
+		return err
+	}
+	fmt.Println(value)
+	return nil
 }
 
 type IfStatement struct {
 	Condition Expression
 	Then      []Statement
-	ElseIf    []ElseIfStatement
 	Else      []Statement
 }
 
@@ -181,37 +206,26 @@ func (i *IfStatement) String() string {
 	return fmt.Sprintf("if %s {}", i.Condition.String())
 }
 
-func (i *IfStatement) Execute(env *Environment) {
-	if i.Condition.Eval(env) != 0 {
+func (i *IfStatement) Execute(env *Environment) error {
+	val, err := i.Condition.Eval(env)
+	if err != nil {
+		return err
+	}
+
+	if val != 0 {
 		for _, stmt := range i.Then {
-			stmt.Execute(env)
-		}
-	} else {
-		for _, elseif := range i.ElseIf {
-			if elseif.Condition.Eval(env) != 0 {
-				elseif.Execute(env)
-				return
+			if err := stmt.Execute(env); err != nil {
+				return err
 			}
 		}
+	} else {
 		for _, stmt := range i.Else {
-			stmt.Execute(env)
+			if err := stmt.Execute(env); err != nil {
+				return err
+			}
 		}
 	}
-}
-
-type ElseIfStatement struct {
-	Condition Expression
-	Then      []Statement
-}
-
-func (e *ElseIfStatement) String() string {
-	return fmt.Sprintf("else if %s {}", e.Condition.String())
-}
-
-func (e *ElseIfStatement) Execute(env *Environment) {
-	for _, stmt := range e.Then {
-		stmt.Execute(env)
-	}
+	return nil
 }
 
 type Program struct {
@@ -226,8 +240,11 @@ func (p *Program) String() string {
 	return result
 }
 
-func (p *Program) Execute(env *Environment) {
+func (p *Program) Execute(env *Environment) error {
 	for _, stmt := range p.Statements {
-		stmt.Execute(env)
+		if err := stmt.Execute(env); err != nil {
+			return err
+		}
 	}
+	return nil
 }

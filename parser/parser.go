@@ -50,13 +50,16 @@ func (p *Parser) match(expected lexer.TokenType) error {
 }
 
 func (p *Parser) parseStatement() (Statement, error) {
-	if p.peek() == lexer.LetToken {
+	switch p.peek() {
+	case lexer.LetToken:
 		return p.parseDeclareStatement()
-	} else if p.peek() == lexer.IdentToken {
+	case lexer.IdentToken:
 		return p.parseAssignStatement()
-	} else if p.peek() == lexer.PrintToken {
+	case lexer.PrintToken:
 		return p.parsePrintStatement()
-	} else {
+	case lexer.IfToken:
+		return p.parseIfStatement()
+	default:
 		return nil, p.error("unexpected token")
 	}
 }
@@ -73,7 +76,7 @@ func (p *Parser) parseDeclareStatement() (Statement, error) {
 		return nil, err
 	}
 
-	exp, err := p.parseExpression()
+	exp, err := p.parseComparison()
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +94,7 @@ func (p *Parser) parseAssignStatement() (Statement, error) {
 	if err := p.match(lexer.AssignToken); err != nil {
 		return nil, err
 	}
-	exp, err := p.parseExpression()
+	exp, err := p.parseComparison()
 	if err != nil {
 		return nil, err
 	}
@@ -105,13 +108,105 @@ func (p *Parser) parsePrintStatement() (Statement, error) {
 	if err := p.match(lexer.PrintToken); err != nil {
 		return nil, err
 	}
-	exp, err := p.parseExpression()
+	exp, err := p.parseComparison()
 	if err != nil {
 		return nil, err
 	}
 	return &PrintStatement{
 		Expression: exp,
 	}, nil
+}
+
+func (p *Parser) parseIfStatement() (Statement, error) {
+	if err := p.match(lexer.IfToken); err != nil {
+		return nil, err
+	}
+	cond, err := p.parseComparison()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.match(lexer.LeftBraceToken); err != nil {
+		return nil, err
+	}
+
+	thenBlock := []Statement{}
+
+	for p.peek() != lexer.RightBraceToken {
+		stmt, err := p.parseStatement()
+		if err != nil {
+			return nil, err
+		}
+		thenBlock = append(thenBlock, stmt)
+	}
+	if err := p.match(lexer.RightBraceToken); err != nil {
+		return nil, err
+	}
+
+	if p.peek() != lexer.ElseToken {
+		return &IfStatement{
+			Condition: cond,
+			Then:      thenBlock,
+		}, nil
+	}
+
+	elseBlock := []Statement{}
+	if err := p.match(lexer.ElseToken); err != nil {
+		return nil, err
+	}
+	if p.peek() == lexer.IfToken {
+		fmt.Print("else if ")
+		elseIf, err := p.parseIfStatement()
+		if err != nil {
+			return nil, err
+		}
+		elseBlock = append(elseBlock, elseIf)
+	} else {
+		if err := p.match(lexer.LeftBraceToken); err != nil {
+			return nil, err
+		}
+		for p.peek() != lexer.RightBraceToken {
+			stmt, err := p.parseStatement()
+			if err != nil {
+				return nil, err
+			}
+			elseBlock = append(elseBlock, stmt)
+		}
+		if err := p.match(lexer.RightBraceToken); err != nil {
+			return nil, err
+		}
+	}
+
+	return &IfStatement{
+		Condition: cond,
+		Then:      thenBlock,
+		Else:      elseBlock,
+	}, nil
+}
+
+func (p *Parser) parseComparison() (Expression, error) {
+	left, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	switch p.peek() {
+	case lexer.EqualToken, lexer.NotEqualToken, lexer.GTToken, lexer.LTToken, lexer.GEQToken, lexer.LEQToken:
+		op := p.peek()
+		if err := p.match(op); err != nil {
+			return nil, err
+		}
+		right, err := p.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+		return &BinaryExpression{
+			Left:  left,
+			Op:    op,
+			Right: right,
+		}, nil
+	}
+
+	return left, nil
 }
 
 func (p *Parser) parseExpression() (Expression, error) {
@@ -239,7 +334,9 @@ func (p *Parser) Execute(env *Environment) error {
 		return err
 	}
 	for _, stmt := range stmts {
-		stmt.Execute(env)
+		if err := stmt.Execute(env); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -3,7 +3,8 @@ package lexer
 type TokenType int
 
 const (
-	LetToken TokenType = iota
+	EOFToken TokenType = iota
+	LetToken
 	PrintToken
 	IdentToken
 	NumberToken
@@ -25,7 +26,6 @@ const (
 	LTToken
 	GEQToken
 	LEQToken
-	EOFToken
 )
 
 func (t TokenType) String() string {
