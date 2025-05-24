@@ -59,6 +59,8 @@ func (p *Parser) parseStatement() (Statement, error) {
 		return p.parsePrintStatement()
 	case lexer.IfToken:
 		return p.parseIfStatement()
+	case lexer.WhileToken:
+		return p.parseWhileStatement()
 	default:
 		return nil, p.error("unexpected token")
 	}
@@ -180,6 +182,35 @@ func (p *Parser) parseIfStatement() (Statement, error) {
 		Condition: cond,
 		Then:      thenBlock,
 		Else:      elseBlock,
+	}, nil
+}
+
+func (p *Parser) parseWhileStatement() (Statement, error) {
+	if err := p.match(lexer.WhileToken); err != nil {
+		return nil, err
+	}
+
+	cond, err := p.parseComparison()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.match(lexer.LeftBraceToken); err != nil {
+		return nil, err
+	}
+	body := []Statement{}
+	for p.peek() != lexer.RightBraceToken {
+		stmt, err := p.parseStatement()
+		if err != nil {
+			return nil, err
+		}
+		body = append(body, stmt)
+	}
+	if err := p.match(lexer.RightBraceToken); err != nil {
+		return nil, err
+	}
+	return &WhileStatement{
+		Condition: cond,
+		Body:      body,
 	}, nil
 }
 

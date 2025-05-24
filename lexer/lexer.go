@@ -149,6 +149,8 @@ func (l *Lexer) NextToken() (Token, error) {
 			return NewToken(IfToken, l.column, l.line), nil
 		case "else":
 			return NewToken(ElseToken, l.column, l.line), nil
+		case "while":
+			return NewToken(WhileToken, l.column, l.line), nil
 		default:
 			return Token{Type: IdentToken, Literal: literal, Column: l.column, Line: l.line}, nil
 		}

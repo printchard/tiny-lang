@@ -18,6 +18,7 @@ Additionally, the language supports the following constructs:
 - Arithmetic Operations
 - Relational Operations
 - If statements
+- While statements
 
 ## Using the language
 

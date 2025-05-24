@@ -13,6 +13,18 @@ func NewEnvironment(parent *Environment) *Environment {
 }
 
 func (env *Environment) Set(name string, value float64) {
+	if _, ok := env.variables[name]; ok {
+		env.variables[name] = value
+	} else {
+		if env.parent != nil {
+			env.parent.Set(name, value)
+		} else {
+			env.variables[name] = value
+		}
+	}
+}
+
+func (env *Environment) Define(name string, value float64) {
 	env.variables[name] = value
 }
 

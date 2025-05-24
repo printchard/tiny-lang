@@ -150,7 +150,7 @@ func (d *DeclarationStatement) Execute(env *Environment) error {
 		return err
 	}
 
-	env.Set(d.Identifier.Name, value)
+	env.Define(d.Identifier.Name, value)
 	return nil
 }
 
@@ -221,6 +221,40 @@ func (i *IfStatement) Execute(env *Environment) error {
 			if err := stmt.Execute(childEnv); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+type WhileStatement struct {
+	Condition Expression
+	Body      []Statement
+}
+
+func (w *WhileStatement) String() string {
+	body := ""
+	for _, stmt := range w.Body {
+		body += stmt.String() + "\n"
+	}
+	return fmt.Sprintf("while %s {\n%s}", w.Condition.String(), body)
+}
+
+func (w *WhileStatement) Execute(env *Environment) error {
+	val, err := w.Condition.Eval(env)
+	if err != nil {
+		return err
+	}
+
+	for val != 0 {
+		childEnv := NewEnvironment(env)
+		for _, stmt := range w.Body {
+			if err := stmt.Execute(childEnv); err != nil {
+				return err
+			}
+		}
+		val, err = w.Condition.Eval(env)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

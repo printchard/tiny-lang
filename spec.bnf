@@ -1,6 +1,6 @@
 program = { statement }
 
-statement = declare-statement | assign-statement | print-statement | if-statement
+statement = declare-statement | assign-statement | print-statement | if-statement | while-statement
 
 declare-statement = "let" identifier ":=" comparison
 
@@ -13,6 +13,8 @@ if-statement = "if" comparison "{" { statement } "}" { else-if-statement } [ els
 else-if-statement = "else" "if" comparison "{" { statement } "}"
 
 else-statement = "else" "{" { statement } "}"
+
+while-statement = "while" comparison "{" { statement } "}"
 
 comparison = expression [ ("==" | "!=" | ">" | ">=" | "<" | "<=") expression ]
 

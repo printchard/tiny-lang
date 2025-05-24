@@ -26,6 +26,7 @@ const (
 	LTToken
 	GEQToken
 	LEQToken
+	WhileToken
 )
 
 func (t TokenType) String() string {
