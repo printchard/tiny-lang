@@ -136,6 +136,27 @@ func (l *Lexer) NextToken() (Token, error) {
 			return NewToken(GEQToken, l.column, l.line), nil
 		}
 		return NewToken(GTToken, l.column, l.line), nil
+	case '!':
+		l.next()
+		if l.peek() == '=' {
+			l.next()
+			return NewToken(NotEqualToken, l.column, l.line), nil
+		}
+		return NewToken(NotToken, l.column, l.line), nil
+	case '&':
+		l.next()
+		if l.peek() != '&' {
+			return Token{}, l.error("expected '&' after '&'")
+		}
+		l.next()
+		return NewToken(AndToken, l.column, l.line), nil
+	case '|':
+		l.next()
+		if l.peek() != '|' {
+			return Token{}, l.error("expected '|' after '|'")
+		}
+		l.next()
+		return NewToken(OrToken, l.column, l.line), nil
 	}
 
 	if unicode.IsLetter(l.peek()) {
@@ -151,6 +172,10 @@ func (l *Lexer) NextToken() (Token, error) {
 			return NewToken(ElseToken, l.column, l.line), nil
 		case "while":
 			return NewToken(WhileToken, l.column, l.line), nil
+		case "true":
+			return NewToken(TrueToken, l.column, l.line), nil
+		case "false":
+			return NewToken(FalseToken, l.column, l.line), nil
 		default:
 			return Token{Type: IdentToken, Literal: literal, Column: l.column, Line: l.line}, nil
 		}

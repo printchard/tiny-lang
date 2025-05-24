@@ -49,6 +49,44 @@ func (p *Parser) match(expected lexer.TokenType) error {
 	return p.error(fmt.Sprintf("expected %s, found %s", expected, p.peek()))
 }
 
+func (p *Parser) Parse() ([]Statement, error) {
+	return p.parseProgram()
+}
+
+func (p *Parser) Execute(env *Environment) error {
+	if env == nil {
+		env = NewEnvironment(nil)
+	}
+
+	stmts, err := p.Parse()
+	if err != nil {
+		return err
+	}
+	for _, stmt := range stmts {
+		if err := stmt.Execute(env); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseProgram() ([]Statement, error) {
+	statements := []Statement{}
+	for p.current < len(p.tokens) {
+		if p.peek() == lexer.EOFToken {
+			return nil, p.error("unexpected EOF")
+		}
+		stmt, err := p.parseStatement()
+		if err != nil {
+			return nil, err
+		}
+		if stmt != nil {
+			statements = append(statements, stmt)
+		}
+	}
+	return statements, nil
+}
+
 func (p *Parser) parseStatement() (Statement, error) {
 	switch p.peek() {
 	case lexer.LetToken:
@@ -78,7 +116,7 @@ func (p *Parser) parseDeclareStatement() (Statement, error) {
 		return nil, err
 	}
 
-	exp, err := p.parseComparison()
+	exp, err := p.parseLogicalExpression()
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +134,7 @@ func (p *Parser) parseAssignStatement() (Statement, error) {
 	if err := p.match(lexer.AssignToken); err != nil {
 		return nil, err
 	}
-	exp, err := p.parseComparison()
+	exp, err := p.parseLogicalExpression()
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +148,7 @@ func (p *Parser) parsePrintStatement() (Statement, error) {
 	if err := p.match(lexer.PrintToken); err != nil {
 		return nil, err
 	}
-	exp, err := p.parseComparison()
+	exp, err := p.parseLogicalExpression()
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +161,7 @@ func (p *Parser) parseIfStatement() (Statement, error) {
 	if err := p.match(lexer.IfToken); err != nil {
 		return nil, err
 	}
-	cond, err := p.parseComparison()
+	cond, err := p.parseLogicalExpression()
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +194,6 @@ func (p *Parser) parseIfStatement() (Statement, error) {
 		return nil, err
 	}
 	if p.peek() == lexer.IfToken {
-		fmt.Print("else if ")
 		elseIf, err := p.parseIfStatement()
 		if err != nil {
 			return nil, err
@@ -190,7 +227,7 @@ func (p *Parser) parseWhileStatement() (Statement, error) {
 		return nil, err
 	}
 
-	cond, err := p.parseComparison()
+	cond, err := p.parseLogicalExpression()
 	if err != nil {
 		return nil, err
 	}
@@ -212,6 +249,97 @@ func (p *Parser) parseWhileStatement() (Statement, error) {
 		Condition: cond,
 		Body:      body,
 	}, nil
+}
+
+func (p *Parser) parseLogicalExpression() (Expression, error) {
+	left, err := p.parseLogicalTerm()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.peek() == lexer.OrToken {
+		if err := p.match(lexer.OrToken); err != nil {
+			return nil, err
+		}
+		right, err := p.parseLogicalTerm()
+		if err != nil {
+			return nil, err
+		}
+		left = &BinaryExpression{
+			Left:  left,
+			Op:    lexer.OrToken,
+			Right: right,
+		}
+	}
+	return left, nil
+}
+
+func (p *Parser) parseLogicalTerm() (Expression, error) {
+	left, err := p.parseLogicalUnary()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.peek() == lexer.AndToken {
+		if err := p.match(lexer.AndToken); err != nil {
+			return nil, err
+		}
+		right, err := p.parseLogicalUnary()
+		if err != nil {
+			return nil, err
+		}
+		left = &BinaryExpression{
+			Left:  left,
+			Op:    lexer.AndToken,
+			Right: right,
+		}
+	}
+	return left, nil
+}
+
+func (p *Parser) parseLogicalUnary() (Expression, error) {
+	if p.peek() == lexer.NotToken {
+		if err := p.match(lexer.NotToken); err != nil {
+			return nil, err
+		}
+		right, err := p.parseLogicalUnary()
+		if err != nil {
+			return nil, err
+		}
+		return &UnaryExpression{
+			Op:    lexer.NotToken,
+			Right: right,
+		}, nil
+	} else {
+		return p.parseLogicalFactor()
+	}
+}
+
+func (p *Parser) parseLogicalFactor() (Expression, error) {
+	if p.peek() == lexer.LeftParenToken {
+		if err := p.match(lexer.LeftParenToken); err != nil {
+			return nil, err
+		}
+		expr, err := p.parseLogicalExpression()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.match(lexer.RightParenToken); err != nil {
+			return nil, err
+		}
+		return expr, nil
+	} else if p.peek() == lexer.TrueToken || p.peek() == lexer.FalseToken {
+		token := p.peekToken()
+		if err := p.match(token.Type); err != nil {
+			return nil, err
+		}
+		if token.Type == lexer.TrueToken {
+			return &NumberLiteral{Value: 1}, nil
+		}
+		return &NumberLiteral{Value: 0}, nil
+	} else {
+		return p.parseComparison()
+	}
 }
 
 func (p *Parser) parseComparison() (Expression, error) {
@@ -332,42 +460,4 @@ func (p *Parser) parseFactor() (Expression, error) {
 		}
 		return &Identifier{Name: p.tokens[p.current-1].Literal}, nil
 	}
-}
-
-func (p *Parser) parseProgram() ([]Statement, error) {
-	statements := []Statement{}
-	for p.current < len(p.tokens) {
-		if p.peek() == lexer.EOFToken {
-			return nil, p.error("unexpected EOF")
-		}
-		stmt, err := p.parseStatement()
-		if err != nil {
-			return nil, err
-		}
-		if stmt != nil {
-			statements = append(statements, stmt)
-		}
-	}
-	return statements, nil
-}
-
-func (p *Parser) Parse() ([]Statement, error) {
-	return p.parseProgram()
-}
-
-func (p *Parser) Execute(env *Environment) error {
-	if env == nil {
-		env = NewEnvironment(nil)
-	}
-
-	stmts, err := p.Parse()
-	if err != nil {
-		return err
-	}
-	for _, stmt := range stmts {
-		if err := stmt.Execute(env); err != nil {
-			return err
-		}
-	}
-	return nil
 }

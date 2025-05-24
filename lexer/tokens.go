@@ -27,6 +27,11 @@ const (
 	GEQToken
 	LEQToken
 	WhileToken
+	TrueToken
+	FalseToken
+	OrToken
+	AndToken
+	NotToken
 )
 
 func (t TokenType) String() string {
@@ -77,6 +82,18 @@ func (t TokenType) String() string {
 		return "<="
 	case EOFToken:
 		return "EOF"
+	case WhileToken:
+		return "WHILE"
+	case TrueToken:
+		return "TRUE"
+	case FalseToken:
+		return "FALSE"
+	case OrToken:
+		return "||"
+	case AndToken:
+		return "&&"
+	case NotToken:
+		return "!"
 	default:
 		return "UNKNOWN"
 	}

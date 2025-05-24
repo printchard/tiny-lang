@@ -106,6 +106,16 @@ func (b *BinaryExpression) Eval(env *Environment) (float64, error) {
 			return 1, nil
 		}
 		return 0, nil
+	case lexer.AndToken:
+		if left != 0 && right != 0 {
+			return 1, nil
+		}
+		return 0, nil
+	case lexer.OrToken:
+		if left != 0 || right != 0 {
+			return 1, nil
+		}
+		return 0, nil
 	default:
 		return 0, fmt.Errorf("unknown operator: %s", b.Op)
 	}
@@ -128,6 +138,15 @@ func (u *UnaryExpression) Eval(env *Environment) (float64, error) {
 			return 0, err
 		}
 		return -value, nil
+	case lexer.NotToken:
+		value, err := u.Right.Eval(env)
+		if err != nil {
+			return 0, err
+		}
+		if value == 0 {
+			return 1, nil
+		}
+		return 0, nil
 	default:
 		return 0, fmt.Errorf("unknown operator: %s", u.Op)
 	}

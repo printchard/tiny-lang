@@ -16,7 +16,7 @@ Additionally, the language supports the following constructs:
 
 - Print
 - Arithmetic Operations
-- Relational Operations
+- Boolean Operations
 - If statements
 - While statements
 

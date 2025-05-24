@@ -2,19 +2,27 @@ program = { statement }
 
 statement = declare-statement | assign-statement | print-statement | if-statement | while-statement
 
-declare-statement = "let" identifier ":=" comparison
+declare-statement = "let" identifier ":=" logical-expression
 
-assign-statement = identifier "=" comparison
+assign-statement = identifier "=" logical-expression
 
-print-statement = "print" comparison
+print-statement = "print" logical-expression
 
-if-statement = "if" comparison "{" { statement } "}" { else-if-statement } [ else-statement ]
+if-statement = "if" logical-expression "{" { statement } "}" { else-if-statement } [ else-statement ]
 
-else-if-statement = "else" "if" comparison "{" { statement } "}"
+else-if-statement = "else" "if" logical-expression "{" { statement } "}"
 
 else-statement = "else" "{" { statement } "}"
 
-while-statement = "while" comparison "{" { statement } "}"
+while-statement = "while" logical-expression "{" { statement } "}"
+
+logical-expression = logical-term { "||" logical-term }
+
+logical-term = logical-unary { "&&" logical-unary }
+
+logical-unary = "!" logical-unary | logical-factor
+
+logical-factor = "(" logical-expression ")" | comparison | "true" | "false"
 
 comparison = expression [ ("==" | "!=" | ">" | ">=" | "<" | "<=") expression ]
 
@@ -24,4 +32,4 @@ term = unary { ("*" | "/") unary }
 
 unary = "-" unary | factor
 
-factor = "(" expression ")" | number | identifier
+factor = number | identifier | "(" expression ")"
