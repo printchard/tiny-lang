@@ -1,12 +1,20 @@
 program = { statement }
 
-statement = declare-statement | assign-statement | print-statement
+statement = declare-statement | assign-statement | print-statement | if-statement
 
-declare-statement = "let" identifier ":=" expression
+declare-statement = "let" identifier ":=" comparison
 
-assign-statement = identifier "=" expression
+assign-statement = identifier "=" comparison
 
-print-statement = "print" expression
+print-statement = "print" comparison
+
+if-statement = "if" comparison "{" { statement } "}" { else-if-statement } [ else-statement ]
+
+else-if-statement = "else" "if" comparison "{" { statement } "}"
+
+else-statement = "else" "{" { statement } "}"
+
+comparison = expression [ ("==" | "!=" | ">" | ">=" | "<" | "<=") expression ]
 
 expression = term { ("+" | "-") term }
 

@@ -86,6 +86,10 @@ func (l *Lexer) NextToken() (Token, error) {
 	switch l.peek() {
 	case '=':
 		l.next()
+		if l.peek() == '=' {
+			l.next()
+			return NewToken(EqualToken, l.column, l.line), nil
+		}
 		return NewToken(AssignToken, l.column, l.line), nil
 	case ':':
 		l.next()
@@ -112,6 +116,26 @@ func (l *Lexer) NextToken() (Token, error) {
 	case ')':
 		l.next()
 		return NewToken(RightParenToken, l.column, l.line), nil
+	case '{':
+		l.next()
+		return NewToken(LeftBraceToken, l.column, l.line), nil
+	case '}':
+		l.next()
+		return NewToken(RightBraceToken, l.column, l.line), nil
+	case '<':
+		l.next()
+		if l.peek() == '=' {
+			l.next()
+			return NewToken(LEQToken, l.column, l.line), nil
+		}
+		return NewToken(LTToken, l.column, l.line), nil
+	case '>':
+		l.next()
+		if l.peek() == '=' {
+			l.next()
+			return NewToken(GEQToken, l.column, l.line), nil
+		}
+		return NewToken(GTToken, l.column, l.line), nil
 	}
 
 	if unicode.IsLetter(l.peek()) {

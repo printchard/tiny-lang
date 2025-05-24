@@ -15,6 +15,16 @@ const (
 	DivideToken
 	LeftParenToken
 	RightParenToken
+	IfToken
+	ElseToken
+	LeftBraceToken
+	RightBraceToken
+	EqualToken
+	NotEqualToken
+	GTToken
+	LTToken
+	GEQToken
+	LEQToken
 	EOFToken
 )
 
@@ -44,6 +54,26 @@ func (t TokenType) String() string {
 		return "("
 	case RightParenToken:
 		return ")"
+	case IfToken:
+		return "IF"
+	case ElseToken:
+		return "ELSE"
+	case LeftBraceToken:
+		return "{"
+	case RightBraceToken:
+		return "}"
+	case EqualToken:
+		return "=="
+	case NotEqualToken:
+		return "!="
+	case GTToken:
+		return ">"
+	case LTToken:
+		return "<"
+	case GEQToken:
+		return ">="
+	case LEQToken:
+		return "<="
 	case EOFToken:
 		return "EOF"
 	default:

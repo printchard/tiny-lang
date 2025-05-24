@@ -74,6 +74,36 @@ func (b *BinaryExpression) Eval(env *Environment) float64 {
 		return left * right
 	case lexer.DivideToken:
 		return left / right
+	case lexer.EqualToken:
+		if left == right {
+			return 1
+		}
+		return 0
+	case lexer.NotEqualToken:
+		if left != right {
+			return 1
+		}
+		return 0
+	case lexer.GTToken:
+		if left > right {
+			return 1
+		}
+		return 0
+	case lexer.LTToken:
+		if left < right {
+			return 1
+		}
+		return 0
+	case lexer.GEQToken:
+		if left >= right {
+			return 1
+		}
+		return 0
+	case lexer.LEQToken:
+		if left <= right {
+			return 1
+		}
+		return 0
 	default:
 		panic(fmt.Sprintf("unknown operator: %s", b.Op))
 	}
@@ -138,6 +168,50 @@ func (p *PrintStatement) String() string {
 
 func (p *PrintStatement) Execute(env *Environment) {
 	fmt.Println(p.Expression.Eval(env))
+}
+
+type IfStatement struct {
+	Condition Expression
+	Then      []Statement
+	ElseIf    []ElseIfStatement
+	Else      []Statement
+}
+
+func (i *IfStatement) String() string {
+	return fmt.Sprintf("if %s {}", i.Condition.String())
+}
+
+func (i *IfStatement) Execute(env *Environment) {
+	if i.Condition.Eval(env) != 0 {
+		for _, stmt := range i.Then {
+			stmt.Execute(env)
+		}
+	} else {
+		for _, elseif := range i.ElseIf {
+			if elseif.Condition.Eval(env) != 0 {
+				elseif.Execute(env)
+				return
+			}
+		}
+		for _, stmt := range i.Else {
+			stmt.Execute(env)
+		}
+	}
+}
+
+type ElseIfStatement struct {
+	Condition Expression
+	Then      []Statement
+}
+
+func (e *ElseIfStatement) String() string {
+	return fmt.Sprintf("else if %s {}", e.Condition.String())
+}
+
+func (e *ElseIfStatement) Execute(env *Environment) {
+	for _, stmt := range e.Then {
+		stmt.Execute(env)
+	}
 }
 
 type Program struct {
