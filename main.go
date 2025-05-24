@@ -35,9 +35,7 @@ func main() {
 }
 
 func repl() {
-	env := parser.Environment{
-		Variables: make(map[string]float64),
-	}
+	env := parser.NewEnvironment(nil)
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -62,7 +60,7 @@ func repl() {
 		}
 
 		p := parser.New(tokens)
-		if err := p.Execute(&env); err != nil {
+		if err := p.Execute(env); err != nil {
 			fmt.Println(err)
 			continue
 		}

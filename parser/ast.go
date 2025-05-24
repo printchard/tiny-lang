@@ -6,10 +6,6 @@ import (
 	"github.com/printchard/tiny-lang/lexer"
 )
 
-type Environment struct {
-	Variables map[string]float64
-}
-
 type Node interface {
 	String() string
 }
@@ -45,7 +41,7 @@ func (i *Identifier) String() string {
 }
 
 func (i *Identifier) Eval(env *Environment) (float64, error) {
-	if value, ok := env.Variables[i.Name]; ok {
+	if value, ok := env.Get(i.Name); ok {
 		return value, nil
 	}
 	return 0, fmt.Errorf("undefined variable: %s", i.Name)
@@ -146,7 +142,7 @@ func (d *DeclarationStatement) String() string {
 	return fmt.Sprintf("let %s = %s", d.Identifier.String(), d.Value.String())
 }
 func (d *DeclarationStatement) Execute(env *Environment) error {
-	if _, ok := env.Variables[d.Identifier.Name]; ok {
+	if _, ok := env.Get(d.Identifier.Name); ok {
 		return fmt.Errorf("variable already declared: %s", d.Identifier.Name)
 	}
 	value, err := d.Value.Eval(env)
@@ -154,7 +150,7 @@ func (d *DeclarationStatement) Execute(env *Environment) error {
 		return err
 	}
 
-	env.Variables[d.Identifier.Name] = value
+	env.Set(d.Identifier.Name, value)
 	return nil
 }
 
@@ -168,14 +164,14 @@ func (a *AssignmentStatement) String() string {
 }
 
 func (a *AssignmentStatement) Execute(env *Environment) error {
-	if _, ok := env.Variables[a.Identifier.Name]; !ok {
+	if _, ok := env.Get(a.Identifier.Name); !ok {
 		return fmt.Errorf("undefined variable: %s", a.Identifier.Name)
 	}
 	value, err := a.Value.Eval(env)
 	if err != nil {
 		return err
 	}
-	env.Variables[a.Identifier.Name] = value
+	env.Set(a.Identifier.Name, value)
 	return nil
 }
 
@@ -212,15 +208,17 @@ func (i *IfStatement) Execute(env *Environment) error {
 		return err
 	}
 
+	childEnv := NewEnvironment(env)
+
 	if val != 0 {
 		for _, stmt := range i.Then {
-			if err := stmt.Execute(env); err != nil {
+			if err := stmt.Execute(childEnv); err != nil {
 				return err
 			}
 		}
 	} else {
 		for _, stmt := range i.Else {
-			if err := stmt.Execute(env); err != nil {
+			if err := stmt.Execute(childEnv); err != nil {
 				return err
 			}
 		}

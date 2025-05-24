@@ -3,7 +3,9 @@ let b := 4
 let c := 3
 
 if a > b {
+  let x := 12
   print a
+  print x
 }
 
 print 2

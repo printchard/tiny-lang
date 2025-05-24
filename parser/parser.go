@@ -326,7 +326,7 @@ func (p *Parser) Parse() ([]Statement, error) {
 
 func (p *Parser) Execute(env *Environment) error {
 	if env == nil {
-		env = &Environment{Variables: make(map[string]float64)}
+		env = NewEnvironment(nil)
 	}
 
 	stmts, err := p.Parse()
