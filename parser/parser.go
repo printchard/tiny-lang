@@ -161,8 +161,11 @@ func (p *Parser) Parse() []Statement {
 	return p.parseProgram()
 }
 
-func (p *Parser) Execute() {
-	env := &Environment{Variables: make(map[string]float64)}
+func (p *Parser) Execute(env *Environment) {
+	if env == nil {
+		env = &Environment{Variables: make(map[string]float64)}
+	}
+
 	for _, stmt := range p.Parse() {
 		stmt.Execute(env)
 	}
