@@ -75,6 +75,9 @@ func (b *BinaryExpression) Eval(env *Environment) (float64, error) {
 	case lexer.MultiplyToken:
 		return left * right, nil
 	case lexer.DivideToken:
+		if right == 0 {
+			return 0, fmt.Errorf("division by zero")
+		}
 		return left / right, nil
 	case lexer.EqualToken:
 		if left == right {
@@ -218,7 +221,15 @@ type IfStatement struct {
 }
 
 func (i *IfStatement) String() string {
-	return fmt.Sprintf("if %s {}", i.Condition.String())
+	thenBody := ""
+	for _, stmt := range i.Then {
+		thenBody += stmt.String() + "\n"
+	}
+	elseBody := ""
+	for _, stmt := range i.Else {
+		elseBody += stmt.String() + "\n"
+	}
+	return fmt.Sprintf("if %s {\n%s} else {\n%s}", i.Condition.String(), thenBody, elseBody)
 }
 
 func (i *IfStatement) Execute(env *Environment) error {
