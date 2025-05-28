@@ -285,6 +285,41 @@ func (a *AssignmentStatement) Execute(env *Environment) error {
 	return nil
 }
 
+type IndexAssignmentStatement struct {
+	Left  *Identifier
+	Index Expression
+	Value Expression
+}
+
+func (i *IndexAssignmentStatement) String() string {
+	return fmt.Sprintf("%s[%s] = %s", i.Left.String(), i.Index.String(), i.Value.String())
+}
+
+func (i *IndexAssignmentStatement) Execute(env *Environment) error {
+	arr, ok := env.Get(i.Left.Name)
+	if !ok {
+		return fmt.Errorf("undefined variable: %s", i.Left.Name)
+	} else if arr.Type != Array {
+		return fmt.Errorf("left side of index assignment must be an array, got %s", arr.Type)
+	}
+	index, err := i.Index.Eval(env)
+	if err != nil {
+		return err
+	}
+	value, err := i.Value.Eval(env)
+	if err != nil {
+		return err
+	}
+	if index.Type != Number {
+		return fmt.Errorf("index must be a number, got %s", index.Type)
+	}
+	if int(index.Number) < 0 || int(index.Number) >= len(arr.Array) {
+		return fmt.Errorf("index out of bounds: %d", int(index.Number))
+	}
+	arr.Array[int(index.Number)] = value
+	return nil
+}
+
 type PrintStatement struct {
 	Expression Expression
 }

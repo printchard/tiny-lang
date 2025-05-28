@@ -131,6 +131,32 @@ func (p *Parser) parseAssignStatement() (Statement, error) {
 	if err := p.match(lexer.IdentToken); err != nil {
 		return nil, err
 	}
+
+	if p.peek() == lexer.LeftBracketToken {
+		if err := p.match(lexer.LeftBracketToken); err != nil {
+			return nil, err
+		}
+		index, err := p.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.match(lexer.RightBracketToken); err != nil {
+			return nil, err
+		}
+		if err := p.match(lexer.AssignToken); err != nil {
+			return nil, err
+		}
+		exp, err := p.parseLogicalExpression()
+		if err != nil {
+			return nil, err
+		}
+		return &IndexAssignmentStatement{
+			Left:  &Identifier{Name: identToken.Literal},
+			Index: index,
+			Value: exp,
+		}, nil
+	}
+
 	if err := p.match(lexer.AssignToken); err != nil {
 		return nil, err
 	}
