@@ -333,10 +333,9 @@ func (p *Parser) parseLogicalFactor() (Expression, error) {
 		if err := p.match(token.Type); err != nil {
 			return nil, err
 		}
-		if token.Type == lexer.TrueToken {
-			return &NumberLiteral{Value: 1}, nil
-		}
-		return &NumberLiteral{Value: 0}, nil
+		return &BooleanLiteral{
+			Value: token.Type == lexer.TrueToken,
+		}, nil
 	} else {
 		return p.parseComparison()
 	}
@@ -454,10 +453,17 @@ func (p *Parser) parseFactor() (Expression, error) {
 			return nil, err
 		}
 		return &NumberLiteral{Value: value}, nil
+	} else if p.peek() == lexer.StringToken {
+		token := p.peekToken()
+		if err := p.match(lexer.StringToken); err != nil {
+			return nil, err
+		}
+		return &StringLiteral{Value: token.Literal}, nil
 	} else {
+		token := p.peekToken()
 		if err := p.match(lexer.IdentToken); err != nil {
 			return nil, err
 		}
-		return &Identifier{Name: p.tokens[p.current-1].Literal}, nil
+		return &Identifier{Name: token.Literal}, nil
 	}
 }

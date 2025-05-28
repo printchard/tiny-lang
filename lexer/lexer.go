@@ -157,6 +157,22 @@ func (l *Lexer) NextToken() (Token, error) {
 		}
 		l.next()
 		return NewToken(OrToken, l.column, l.line), nil
+	case '"':
+		l.next()
+		start := l.position
+		for l.peek() != '"' {
+			l.next()
+		}
+		if l.peek() == 0 {
+			return Token{}, l.error("unterminated string literal")
+		}
+		l.next()
+		return Token{
+			Type:    StringToken,
+			Literal: string(l.input[start : l.position-1]),
+			Column:  l.column,
+			Line:    l.line,
+		}, nil
 	}
 
 	if unicode.IsLetter(l.peek()) {

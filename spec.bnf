@@ -32,4 +32,4 @@ term = unary { ("*" | "/") unary }
 
 unary = "-" unary | factor
 
-factor = number | identifier | "(" expression ")"
+factor = number | identifier | "(" expression ")" | string

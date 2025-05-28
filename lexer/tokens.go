@@ -32,6 +32,7 @@ const (
 	OrToken
 	AndToken
 	NotToken
+	StringToken
 )
 
 func (t TokenType) String() string {
@@ -94,6 +95,8 @@ func (t TokenType) String() string {
 		return "&&"
 	case NotToken:
 		return "!"
+	case StringToken:
+		return "STRING"
 	default:
 		return "UNKNOWN"
 	}
