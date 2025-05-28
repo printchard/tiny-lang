@@ -39,9 +39,11 @@ func (env *Environment) Get(name string) (Value, bool) {
 type ValueType int
 
 const (
-	Number ValueType = iota
+	Unknown ValueType = iota
+	Number
 	String
 	Boolean
+	Array
 )
 
 type Value struct {
@@ -49,6 +51,7 @@ type Value struct {
 	Number  float64
 	String  string
 	Boolean bool
+	Array   []Value
 }
 
 func (v ValueType) String() string {

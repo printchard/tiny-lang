@@ -33,6 +33,9 @@ const (
 	AndToken
 	NotToken
 	StringToken
+	LeftBracketToken
+	RightBracketToken
+	CommaToken
 )
 
 func (t TokenType) String() string {
@@ -97,6 +100,12 @@ func (t TokenType) String() string {
 		return "!"
 	case StringToken:
 		return "STRING"
+	case LeftBracketToken:
+		return "["
+	case RightBracketToken:
+		return "]"
+	case CommaToken:
+		return ","
 	default:
 		return "UNKNOWN"
 	}

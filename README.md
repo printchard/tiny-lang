@@ -13,6 +13,7 @@ Currently, the language supports the following types:
 - Float64
 - Strings
 - Booleans
+- Arrays
 
 Additionally, the language supports the following constructs:
 

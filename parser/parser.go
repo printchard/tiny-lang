@@ -328,14 +328,6 @@ func (p *Parser) parseLogicalFactor() (Expression, error) {
 			return nil, err
 		}
 		return expr, nil
-	} else if p.peek() == lexer.TrueToken || p.peek() == lexer.FalseToken {
-		token := p.peekToken()
-		if err := p.match(token.Type); err != nil {
-			return nil, err
-		}
-		return &BooleanLiteral{
-			Value: token.Type == lexer.TrueToken,
-		}, nil
 	} else {
 		return p.parseComparison()
 	}
@@ -432,7 +424,37 @@ func (p *Parser) parseUnary() (Expression, error) {
 }
 
 func (p *Parser) parseFactor() (Expression, error) {
-	if p.peek() == lexer.LeftParenToken {
+	return p.parsePostfix()
+}
+
+func (p *Parser) parsePostfix() (Expression, error) {
+	primary, err := p.parsePrimary()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.peek() == lexer.LeftBracketToken {
+		if err := p.match(lexer.LeftBracketToken); err != nil {
+			return nil, err
+		}
+		index, err := p.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.match(lexer.RightBracketToken); err != nil {
+			return nil, err
+		}
+		return &PostfixExpression{
+			Left:  primary,
+			Index: index,
+		}, nil
+	}
+	return primary, nil
+}
+
+func (p *Parser) parsePrimary() (Expression, error) {
+	switch p.peek() {
+	case lexer.LeftParenToken:
 		if err := p.match(lexer.LeftParenToken); err != nil {
 			return nil, err
 		}
@@ -444,7 +466,7 @@ func (p *Parser) parseFactor() (Expression, error) {
 			return nil, err
 		}
 		return expr, nil
-	} else if p.peek() == lexer.NumberToken {
+	case lexer.NumberToken:
 		if err := p.match(lexer.NumberToken); err != nil {
 			return nil, err
 		}
@@ -453,17 +475,52 @@ func (p *Parser) parseFactor() (Expression, error) {
 			return nil, err
 		}
 		return &NumberLiteral{Value: value}, nil
-	} else if p.peek() == lexer.StringToken {
+	case lexer.StringToken:
 		token := p.peekToken()
 		if err := p.match(lexer.StringToken); err != nil {
 			return nil, err
 		}
 		return &StringLiteral{Value: token.Literal}, nil
-	} else {
+	case lexer.TrueToken, lexer.FalseToken:
+		token := p.peekToken()
+		if err := p.match(token.Type); err != nil {
+			return nil, err
+		}
+		return &BooleanLiteral{
+			Value: token.Type == lexer.TrueToken,
+		}, nil
+	case lexer.IdentToken:
 		token := p.peekToken()
 		if err := p.match(lexer.IdentToken); err != nil {
 			return nil, err
 		}
 		return &Identifier{Name: token.Literal}, nil
+	case lexer.LeftBracketToken:
+		return p.parseArrayLiteral()
+	default:
+		return nil, p.error("unexpected token in primary expression")
 	}
+}
+
+func (p *Parser) parseArrayLiteral() (Expression, error) {
+	if err := p.match(lexer.LeftBracketToken); err != nil {
+		return nil, err
+	}
+	elements := []Expression{}
+	for p.peek() != lexer.RightBracketToken {
+		exp, err := p.parseLogicalExpression()
+		if err != nil {
+			return nil, err
+		}
+		elements = append(elements, exp)
+		if p.peek() == lexer.CommaToken {
+			if err := p.match(lexer.CommaToken); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if err := p.match(lexer.RightBracketToken); err != nil {
+		return nil, err
+	}
+	return &ArrayLiteral{Elements: elements}, nil
 }

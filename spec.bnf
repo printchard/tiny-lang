@@ -20,9 +20,7 @@ logical-expression = logical-term { "||" logical-term }
 
 logical-term = logical-unary { "&&" logical-unary }
 
-logical-unary = "!" logical-unary | logical-factor
-
-logical-factor = "(" logical-expression ")" | comparison | "true" | "false"
+logical-unary = "!" logical-unary | "(" logical-expression ")" | comparison
 
 comparison = expression [ ("==" | "!=" | ">" | ">=" | "<" | "<=") expression ]
 
@@ -32,4 +30,10 @@ term = unary { ("*" | "/") unary }
 
 unary = "-" unary | factor
 
-factor = number | identifier | "(" expression ")" | string
+factor = postfix
+
+postfix = primary { "[" expression "]" }
+
+primary = number | identifier | "(" expression ")" | string | array-literal | "true" | "false"
+
+array-literal = "[" [ logical-expression { "," logical-expression } ] "]"

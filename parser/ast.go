@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/printchard/tiny-lang/lexer"
 )
@@ -54,6 +55,31 @@ func (b *BooleanLiteral) String() string {
 
 func (b *BooleanLiteral) Eval(env *Environment) (Value, error) {
 	return Value{Type: Boolean, Boolean: b.Value}, nil
+}
+
+type ArrayLiteral struct {
+	Elements []Expression
+}
+
+func (a *ArrayLiteral) String() string {
+	var elements []string
+	for _, elem := range a.Elements {
+		elements = append(elements, elem.String())
+	}
+	fmt.Printf("ArrayLiteral: %s\n", strings.Join(elements, ", "))
+	return fmt.Sprintf("[%s]", strings.Join(elements, ", "))
+}
+
+func (a *ArrayLiteral) Eval(env *Environment) (Value, error) {
+	var values []Value
+	for _, elem := range a.Elements {
+		value, err := elem.Eval(env)
+		if err != nil {
+			return Value{}, err
+		}
+		values = append(values, value)
+	}
+	return Value{Type: Array, Array: values}, nil
 }
 
 type Identifier struct {
@@ -186,6 +212,36 @@ func (u *UnaryExpression) Eval(env *Environment) (Value, error) {
 	}
 }
 
+type PostfixExpression struct {
+	Left  Expression
+	Index Expression
+}
+
+func (p *PostfixExpression) String() string {
+	return fmt.Sprintf("%s[%s]", p.Left.String(), p.Index.String())
+}
+
+func (p *PostfixExpression) Eval(env *Environment) (Value, error) {
+	left, err := p.Left.Eval(env)
+	if err != nil {
+		return Value{}, err
+	}
+	index, err := p.Index.Eval(env)
+	if err != nil {
+		return Value{}, err
+	}
+	if left.Type != Array {
+		return Value{}, fmt.Errorf("left side of postfix expression must be an array, got %s", left.Type)
+	}
+	if index.Type != Number {
+		return Value{}, fmt.Errorf("index must be a number, got %s", index.Type)
+	}
+	if int(index.Number) < 0 || int(index.Number) >= len(left.Array) {
+		return Value{}, fmt.Errorf("index out of bounds: %d", int(index.Number))
+	}
+	return left.Array[int(index.Number)], nil
+}
+
 type DeclarationStatement struct {
 	Identifier *Identifier
 	Value      Expression
@@ -249,6 +305,23 @@ func (p *PrintStatement) Execute(env *Environment) error {
 		fmt.Println(value.String)
 	case Boolean:
 		fmt.Println(value.Boolean)
+	case Array:
+		var elements []string
+		for _, elem := range value.Array {
+			switch elem.Type {
+			case Number:
+				elements = append(elements, fmt.Sprintf("%f", elem.Number))
+			case String:
+				elements = append(elements, fmt.Sprintf("%q", elem.String))
+			case Boolean:
+				elements = append(elements, fmt.Sprintf("%t", elem.Boolean))
+			default:
+				return fmt.Errorf("unsupported element type in array: %s", elem.Type)
+			}
+		}
+		fmt.Println(elements)
+	default:
+		return fmt.Errorf("unsupported value type for print: %s", value.Type)
 	}
 	return nil
 }

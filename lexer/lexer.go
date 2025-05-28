@@ -160,7 +160,7 @@ func (l *Lexer) NextToken() (Token, error) {
 	case '"':
 		l.next()
 		start := l.position
-		for l.peek() != '"' {
+		for l.peek() != '"' && l.peek() != 0 {
 			l.next()
 		}
 		if l.peek() == 0 {
@@ -173,6 +173,15 @@ func (l *Lexer) NextToken() (Token, error) {
 			Column:  l.column,
 			Line:    l.line,
 		}, nil
+	case '[':
+		l.next()
+		return NewToken(LeftBracketToken, l.column, l.line), nil
+	case ']':
+		l.next()
+		return NewToken(RightBracketToken, l.column, l.line), nil
+	case ',':
+		l.next()
+		return NewToken(CommaToken, l.column, l.line), nil
 	}
 
 	if unicode.IsLetter(l.peek()) {
