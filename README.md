@@ -11,6 +11,8 @@ You can find the language formal definition in the `spec.bnf` file in ebnf synta
 Currently, the language supports the following types:
 
 - Float64
+- Strings
+- Booleans
 
 Additionally, the language supports the following constructs:
 
