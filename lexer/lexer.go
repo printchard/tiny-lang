@@ -94,7 +94,7 @@ func (l *Lexer) NextToken() (Token, error) {
 	case ':':
 		l.next()
 		if l.peek() != '=' {
-			return Token{}, l.error("expected '=' after ':'")
+			return NewToken(ColonToken, l.column, l.line), nil
 		}
 		l.next()
 		return NewToken(DeclareToken, l.column, l.line), nil
@@ -201,6 +201,10 @@ func (l *Lexer) NextToken() (Token, error) {
 			return NewToken(TrueToken, l.column, l.line), nil
 		case "false":
 			return NewToken(FalseToken, l.column, l.line), nil
+		case "func":
+			return NewToken(FunctionToken, l.column, l.line), nil
+		case "return":
+			return NewToken(ReturnToken, l.column, l.line), nil
 		default:
 			return NewTokenLiteral(IdentToken, l.column, l.line, literal), nil
 		}

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -19,6 +20,14 @@ type Expression interface {
 type Statement interface {
 	Node
 	Execute(env *Environment) error
+}
+
+type ReturnSignal struct {
+	Value
+}
+
+func (s *ReturnSignal) Error() string {
+	return "return signal"
 }
 
 type NumberLiteral struct {
@@ -355,6 +364,8 @@ func (p *PrintStatement) Execute(env *Environment) error {
 			}
 		}
 		fmt.Println(elements)
+	case Function:
+		fmt.Println(value.Function)
 	default:
 		return fmt.Errorf("unsupported value type for print: %s", value.Type)
 	}
@@ -469,4 +480,117 @@ func (p *Program) Execute(env *Environment) error {
 		}
 	}
 	return nil
+}
+
+type ExpressionStatement struct {
+	Expr Expression
+}
+
+func (e ExpressionStatement) Execute(env *Environment) error {
+	_, err := e.Expr.Eval(env)
+	return err
+}
+
+// String implements [Statement].
+func (e ExpressionStatement) String() string {
+	return e.Expr.String()
+}
+
+type FunctionStatement struct {
+	Name *Identifier
+	Args []*Identifier
+	Body []Statement
+}
+
+func (f FunctionStatement) Execute(env *Environment) error {
+	var argNames []string
+	for _, arg := range f.Args {
+		argNames = append(argNames, arg.Name)
+	}
+	funcVal := Func{ArgNames: argNames, Body: f.Body}
+	env.Set(f.Name.Name, Value{Type: Function, Function: funcVal})
+	return nil
+}
+
+func (f FunctionStatement) String() string {
+	var str strings.Builder
+	for _, e := range f.Body {
+		fmt.Fprintf(&str, "%s\n", e)
+	}
+
+	fmt.Fprintf(&str, "func %s {\n%s}", f.Name, str.String())
+	return str.String()
+}
+
+type FunctionCallExpression struct {
+	Name *Identifier
+	Args []Expression
+}
+
+func (f FunctionCallExpression) Eval(env *Environment) (Value, error) {
+	resolved, ok := env.Get(f.Name.Name)
+	if !ok {
+		return Value{}, fmt.Errorf("undefined function: %s", f.Name)
+	}
+	if resolved.Type != Function {
+		return Value{}, fmt.Errorf("function call to non-function type: %s", f.Name)
+	}
+
+	funcVal := resolved.Function
+	if len(f.Args) > len(funcVal.ArgNames) {
+		return Value{}, fmt.Errorf("too many arguments for function %s", f.Name)
+	} else if len(f.Args) < len(funcVal.ArgNames) {
+		return Value{}, fmt.Errorf("too few arguments for function %s", f.Name)
+	}
+
+	funcEnv := NewEnvironment(env)
+	for i := 0; i < len(f.Args); i++ {
+		val, err := f.Args[i].Eval(env)
+		if err != nil {
+			return Value{}, err
+		}
+		funcEnv.Define(funcVal.ArgNames[i], val)
+	}
+	for _, s := range funcVal.Body {
+		err := s.Execute(funcEnv)
+		var ret *ReturnSignal
+		if errors.As(err, &ret) {
+			return ret.Value, nil
+		} else if err != nil {
+			return Value{}, err
+		}
+	}
+	return Value{}, nil
+}
+
+func (f FunctionCallExpression) String() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s(", f.Name)
+	if len(f.Args) > 0 {
+		fmt.Fprint(&b, f.Args[0].String())
+	}
+	for _, arg := range f.Args[1:] {
+		fmt.Fprintf(&b, "%s, ", arg.String())
+	}
+	b.WriteByte(')')
+	return b.String()
+}
+
+type ReturnStatement struct {
+	Return Expression
+}
+
+func (r ReturnStatement) Execute(env *Environment) error {
+	if r.Return == nil {
+		return &ReturnSignal{}
+	}
+	val, err := r.Return.Eval(env)
+	if err != nil {
+		return err
+	}
+	return &ReturnSignal{Value: val}
+}
+
+func (r ReturnStatement) String() string {
+	return fmt.Sprintf("return %s", r.Return)
 }

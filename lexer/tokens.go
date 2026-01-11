@@ -8,6 +8,7 @@ const (
 	PrintToken
 	IdentToken
 	NumberToken
+	ColonToken
 	AssignToken
 	DeclareToken
 	PlusToken
@@ -36,6 +37,8 @@ const (
 	LeftBracketToken
 	RightBracketToken
 	CommaToken
+	FunctionToken
+	ReturnToken
 )
 
 func (t TokenType) String() string {
@@ -48,6 +51,8 @@ func (t TokenType) String() string {
 		return "IDENT"
 	case NumberToken:
 		return "NUMBER"
+	case ColonToken:
+		return ":"
 	case AssignToken:
 		return "="
 	case DeclareToken:
@@ -106,6 +111,10 @@ func (t TokenType) String() string {
 		return "]"
 	case CommaToken:
 		return ","
+	case FunctionToken:
+		return "FUNCTION"
+	case ReturnToken:
+		return "RETURN"
 	default:
 		return "UNKNOWN"
 	}

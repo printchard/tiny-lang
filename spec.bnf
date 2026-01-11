@@ -1,6 +1,12 @@
 program = { statement }
 
-statement = declare-statement | assign-statement | print-statement | if-statement | while-statement
+statement = declare-statement | assign-statement | print-statement | if-statement | while-statement | function-statement | return-statement | logical-expression
+
+function-statement = "func" identifier [ argument-statement ] "{" { statement } "}"
+
+argument-statement = ":" identifier { "," identifier }
+
+return-statement = "return" [ expression ]
 
 declare-statement = "let" identifier ":=" logical-expression
 
@@ -30,10 +36,12 @@ term = unary { ("*" | "/") unary }
 
 unary = "-" unary | factor
 
-factor = postfix
+factor = primary { "[" expression "]" }
 
-postfix = primary { "[" expression "]" }
+primary = number | identifier | "(" expression ")" | string | array-literal | "true" | "false" | function-call
 
-primary = number | identifier | "(" expression ")" | string | array-literal | "true" | "false"
+function-call = identifier "(" [ expression-list ] ")"
 
-array-literal = "[" [ logical-expression { "," logical-expression } ] "]"
+expression-list = logical-expression { "," logical-expression }
+
+array-literal = "[" [ expression-list ] "]"

@@ -91,16 +91,36 @@ func (p *Parser) parseStatement() (Statement, error) {
 	switch p.peek() {
 	case lexer.LetToken:
 		return p.parseDeclareStatement()
-	case lexer.IdentToken:
-		return p.parseAssignStatement()
 	case lexer.PrintToken:
 		return p.parsePrintStatement()
 	case lexer.IfToken:
 		return p.parseIfStatement()
 	case lexer.WhileToken:
 		return p.parseWhileStatement()
+	case lexer.FunctionToken:
+		return p.parseFunctionStatement()
+	case lexer.ReturnToken:
+		return p.parseReturnStatement()
+	case lexer.IdentToken:
+		ident := p.peekToken()
+		p.match(lexer.IdentToken)
+		if p.peek() == lexer.AssignToken {
+			return p.parseAssignStatement(ident.Literal)
+		} else if p.peek() == lexer.LeftParenToken {
+			expr, err := p.parseFunctionCall(ident.Literal)
+			if err != nil {
+				return nil, err
+			}
+			return ExpressionStatement{expr}, nil
+		}
+		fallthrough
 	default:
-		return nil, p.error("unexpected token")
+		expr, err := p.parseLogicalExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		return ExpressionStatement{expr}, nil
 	}
 }
 
@@ -121,17 +141,12 @@ func (p *Parser) parseDeclareStatement() (Statement, error) {
 		return nil, err
 	}
 	return &DeclarationStatement{
-		Identifier: &Identifier{Name: identToken.Literal},
+		Identifier: &Identifier{identToken.Literal},
 		Value:      exp,
 	}, nil
 }
 
-func (p *Parser) parseAssignStatement() (Statement, error) {
-	identToken := p.peekToken()
-	if err := p.match(lexer.IdentToken); err != nil {
-		return nil, err
-	}
-
+func (p *Parser) parseAssignStatement(ident string) (Statement, error) {
 	if p.peek() == lexer.LeftBracketToken {
 		if err := p.match(lexer.LeftBracketToken); err != nil {
 			return nil, err
@@ -151,7 +166,7 @@ func (p *Parser) parseAssignStatement() (Statement, error) {
 			return nil, err
 		}
 		return &IndexAssignmentStatement{
-			Left:  &Identifier{Name: identToken.Literal},
+			Left:  &Identifier{ident},
 			Index: index,
 			Value: exp,
 		}, nil
@@ -165,7 +180,7 @@ func (p *Parser) parseAssignStatement() (Statement, error) {
 		return nil, err
 	}
 	return &AssignmentStatement{
-		Identifier: &Identifier{Name: identToken.Literal},
+		Identifier: &Identifier{ident},
 		Value:      exp,
 	}, nil
 }
@@ -450,10 +465,6 @@ func (p *Parser) parseUnary() (Expression, error) {
 }
 
 func (p *Parser) parseFactor() (Expression, error) {
-	return p.parsePostfix()
-}
-
-func (p *Parser) parsePostfix() (Expression, error) {
 	primary, err := p.parsePrimary()
 	if err != nil {
 		return nil, err
@@ -517,14 +528,15 @@ func (p *Parser) parsePrimary() (Expression, error) {
 		}, nil
 	case lexer.IdentToken:
 		token := p.peekToken()
-		if err := p.match(lexer.IdentToken); err != nil {
-			return nil, err
+		p.match(lexer.IdentToken)
+		if p.peek() == lexer.LeftParenToken {
+			return p.parseFunctionCall(token.Literal)
 		}
-		return &Identifier{Name: token.Literal}, nil
+		return &Identifier{token.Literal}, nil
 	case lexer.LeftBracketToken:
 		return p.parseArrayLiteral()
 	default:
-		return nil, p.error("unexpected token in primary expression")
+		return nil, p.error(fmt.Sprintf("unexpected token in primary expression: %s", p.peek()))
 	}
 }
 
@@ -549,4 +561,91 @@ func (p *Parser) parseArrayLiteral() (Expression, error) {
 		return nil, err
 	}
 	return &ArrayLiteral{Elements: elements}, nil
+}
+
+func (p *Parser) parseFunctionStatement() (Statement, error) {
+	var funcStmt FunctionStatement
+	if err := p.match(lexer.FunctionToken); err != nil {
+		return nil, err
+	}
+	ident := p.peekToken()
+	if err := p.match(lexer.IdentToken); err != nil {
+		return nil, err
+	}
+	funcStmt.Name = &Identifier{ident.Literal}
+	if p.peek() == lexer.ColonToken {
+		args, err := p.parseArgumentStatement()
+		if err != nil {
+			return nil, err
+		}
+		funcStmt.Args = args
+	}
+
+	if err := p.match(lexer.LeftBraceToken); err != nil {
+		return nil, err
+	}
+
+	for p.peek() != lexer.RightBraceToken {
+		stmt, err := p.parseStatement()
+		if err != nil {
+			return nil, err
+		}
+		funcStmt.Body = append(funcStmt.Body, stmt)
+	}
+
+	p.match(lexer.RightBraceToken)
+	return funcStmt, nil
+}
+
+func (p *Parser) parseArgumentStatement() ([]*Identifier, error) {
+	p.match(lexer.ColonToken)
+	var decls []*Identifier
+	ident := p.peekToken()
+	if err := p.match(lexer.IdentToken); err != nil {
+		return nil, err
+	}
+	decls = append(decls, &Identifier{ident.Literal})
+	for p.peek() == lexer.CommaToken {
+		p.match(lexer.CommaToken)
+		ident := p.peekToken()
+		if err := p.match(lexer.IdentToken); err != nil {
+			return nil, err
+		}
+		decls = append(decls, &Identifier{ident.Literal})
+	}
+
+	return decls, nil
+}
+
+func (p *Parser) parseFunctionCall(ident string) (Expression, error) {
+	var fnCall FunctionCallExpression
+	fnCall.Name = &Identifier{ident}
+
+	if err := p.match(lexer.LeftParenToken); err != nil {
+		return nil, err
+	}
+
+	for p.peek() != lexer.RightParenToken {
+		expr, err := p.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+		fnCall.Args = append(fnCall.Args, expr)
+	}
+
+	p.match(lexer.RightParenToken)
+	return fnCall, nil
+}
+
+func (p *Parser) parseReturnStatement() (Statement, error) {
+	p.match(lexer.ReturnToken)
+
+	if p.peek() == lexer.RightBraceToken || p.peek() == lexer.EOFToken {
+		return &ReturnStatement{Return: nil}, nil
+	}
+	expr, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	return ReturnStatement{Return: expr}, nil
 }

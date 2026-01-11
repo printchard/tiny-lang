@@ -44,14 +44,16 @@ const (
 	String
 	Boolean
 	Array
+	Function
 )
 
 type Value struct {
-	Type    ValueType
-	Number  float64
-	String  string
-	Boolean bool
-	Array   []Value
+	Type     ValueType
+	Number   float64
+	String   string
+	Boolean  bool
+	Array    []Value
+	Function Func
 }
 
 func (v ValueType) String() string {
@@ -65,4 +67,9 @@ func (v ValueType) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+type Func struct {
+	ArgNames []string
+	Body     []Statement
 }
