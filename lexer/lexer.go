@@ -202,12 +202,12 @@ func (l *Lexer) NextToken() (Token, error) {
 		case "false":
 			return NewToken(FalseToken, l.column, l.line), nil
 		default:
-			return Token{Type: IdentToken, Literal: literal, Column: l.column, Line: l.line}, nil
+			return NewTokenLiteral(IdentToken, l.column, l.line, literal), nil
 		}
 	}
 	if unicode.IsDigit(l.peek()) {
 		literal := l.readNumber()
-		return Token{Type: NumberToken, Literal: literal, Column: l.column, Line: l.line}, nil
+		return NewTokenLiteral(NumberToken, l.column, l.line, literal), nil
 	}
 
 	return Token{}, l.error("unexpected character")

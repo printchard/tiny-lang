@@ -368,15 +368,15 @@ type IfStatement struct {
 }
 
 func (i *IfStatement) String() string {
-	thenBody := ""
+	var thenBody strings.Builder
 	for _, stmt := range i.Then {
-		thenBody += stmt.String() + "\n"
+		thenBody.WriteString(stmt.String() + "\n")
 	}
-	elseBody := ""
+	var elseBody strings.Builder
 	for _, stmt := range i.Else {
-		elseBody += stmt.String() + "\n"
+		elseBody.WriteString(stmt.String() + "\n")
 	}
-	return fmt.Sprintf("if %s {\n%s} else {\n%s}", i.Condition.String(), thenBody, elseBody)
+	return fmt.Sprintf("if %s {\n%s} else {\n%s}", i.Condition.String(), thenBody.String(), elseBody.String())
 }
 
 func (i *IfStatement) Execute(env *Environment) error {
@@ -413,11 +413,11 @@ type WhileStatement struct {
 }
 
 func (w *WhileStatement) String() string {
-	body := ""
+	var body strings.Builder
 	for _, stmt := range w.Body {
-		body += stmt.String() + "\n"
+		body.WriteString(stmt.String() + "\n")
 	}
-	return fmt.Sprintf("while %s {\n%s}", w.Condition.String(), body)
+	return fmt.Sprintf("while %s {\n%s}", w.Condition.String(), body.String())
 }
 
 func (w *WhileStatement) Execute(env *Environment) error {
@@ -455,11 +455,11 @@ type Program struct {
 }
 
 func (p *Program) String() string {
-	var result string
+	var result strings.Builder
 	for _, stmt := range p.Statements {
-		result += stmt.String() + "\n"
+		result.WriteString(stmt.String() + "\n")
 	}
-	return result
+	return result.String()
 }
 
 func (p *Program) Execute(env *Environment) error {

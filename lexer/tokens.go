@@ -126,3 +126,12 @@ func NewToken(t TokenType, col, line int) Token {
 		Line:    line,
 	}
 }
+
+func NewTokenLiteral(t TokenType, col, line int, literal string) Token {
+	return Token{
+		Type:    t,
+		Literal: literal,
+		Column:  col,
+		Line:    line,
+	}
+}
