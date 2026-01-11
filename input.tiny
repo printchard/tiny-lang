@@ -1,9 +1,18 @@
 func greet: name {
   if name {
-    return print("Hello " + name + "!") 
+    print("Hello " + name + "!")
+    return true
   }
   print("Hello World!")
+  return false
 }
 
-greet("")
-greet("person")
+let result := greet("Alice")
+print(result)
+
+let numbers := [1, 2, 3, 4, 5]
+let i := 0
+while i < 5 {
+  print(numbers[i])
+  i = i + 1
+}
