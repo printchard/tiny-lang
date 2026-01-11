@@ -1,5 +1,9 @@
 package parser
 
+import (
+	"fmt"
+)
+
 type Environment struct {
 	variables map[string]Value
 	parent    *Environment
@@ -9,6 +13,30 @@ func NewEnvironment(parent *Environment) *Environment {
 	return &Environment{
 		variables: make(map[string]Value),
 		parent:    parent,
+	}
+}
+
+var defaultVars map[string]Value = map[string]Value{
+	"print": {
+		Type: NativeFunction,
+		NativeFunction: func(vs []Value) (Value, error) {
+			if len(vs) < 1 {
+				return Value{}, fmt.Errorf("print expects at least 1 value")
+			}
+
+			fmt.Print(vs[0])
+			for _, v := range vs[1:] {
+				fmt.Printf(" %v", v)
+			}
+			fmt.Println()
+			return Value{}, nil
+		},
+	},
+}
+
+func NewDefaultEnvironment() *Environment {
+	return &Environment{
+		variables: defaultVars,
 	}
 }
 
@@ -45,16 +73,8 @@ const (
 	Boolean
 	Array
 	Function
+	NativeFunction
 )
-
-type Value struct {
-	Type     ValueType
-	Number   float64
-	String   string
-	Boolean  bool
-	Array    []Value
-	Function Func
-}
 
 func (v ValueType) String() string {
 	switch v {
@@ -66,6 +86,35 @@ func (v ValueType) String() string {
 		return "Boolean"
 	default:
 		return "unknown"
+	}
+}
+
+type Value struct {
+	Type           ValueType
+	Number         float64
+	Str            string
+	Boolean        bool
+	Array          []Value
+	Function       Func
+	NativeFunction func([]Value) (Value, error)
+}
+
+func (v Value) String() string {
+	switch v.Type {
+	case Number:
+		return fmt.Sprintf("%f", v.Number)
+	case String:
+		return v.Str
+	case Boolean:
+		return fmt.Sprintf("%t", v.Boolean)
+	case Array:
+		return fmt.Sprintf("%v", Array)
+	case Function:
+		return "fn"
+	case NativeFunction:
+		return "nativeFn"
+	default:
+		return "Unknown value type"
 	}
 }
 

@@ -91,8 +91,6 @@ func (p *Parser) parseStatement() (Statement, error) {
 	switch p.peek() {
 	case lexer.LetToken:
 		return p.parseDeclareStatement()
-	case lexer.PrintToken:
-		return p.parsePrintStatement()
 	case lexer.IfToken:
 		return p.parseIfStatement()
 	case lexer.WhileToken:
@@ -182,19 +180,6 @@ func (p *Parser) parseAssignStatement(ident string) (Statement, error) {
 	return &AssignmentStatement{
 		Identifier: &Identifier{ident},
 		Value:      exp,
-	}, nil
-}
-
-func (p *Parser) parsePrintStatement() (Statement, error) {
-	if err := p.match(lexer.PrintToken); err != nil {
-		return nil, err
-	}
-	exp, err := p.parseLogicalExpression()
-	if err != nil {
-		return nil, err
-	}
-	return &PrintStatement{
-		Expression: exp,
 	}, nil
 }
 

@@ -189,8 +189,6 @@ func (l *Lexer) NextToken() (Token, error) {
 		switch literal {
 		case "let":
 			return NewToken(LetToken, l.column, l.line), nil
-		case "print":
-			return NewToken(PrintToken, l.column, l.line), nil
 		case "if":
 			return NewToken(IfToken, l.column, l.line), nil
 		case "else":

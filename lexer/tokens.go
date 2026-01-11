@@ -5,7 +5,6 @@ type TokenType int
 const (
 	EOFToken TokenType = iota
 	LetToken
-	PrintToken
 	IdentToken
 	NumberToken
 	ColonToken
@@ -45,8 +44,6 @@ func (t TokenType) String() string {
 	switch t {
 	case LetToken:
 		return "LET"
-	case PrintToken:
-		return "PRINT"
 	case IdentToken:
 		return "IDENT"
 	case NumberToken:

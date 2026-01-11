@@ -29,13 +29,14 @@ func main() {
 	}
 
 	p := parser.New(tokens)
-	if err := p.Execute(nil); err != nil {
+	env := parser.NewDefaultEnvironment()
+	if err := p.Execute(env); err != nil {
 		panic(err)
 	}
 }
 
 func repl() {
-	env := parser.NewEnvironment(nil)
+	env := parser.NewDefaultEnvironment()
 	reader := bufio.NewReader(os.Stdin)
 
 	for {

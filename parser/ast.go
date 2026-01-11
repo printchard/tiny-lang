@@ -51,7 +51,7 @@ func (s *StringLiteral) String() string {
 }
 
 func (s *StringLiteral) Eval(env *Environment) (Value, error) {
-	return Value{Type: String, String: s.Value}, nil
+	return Value{Type: String, Str: s.Value}, nil
 }
 
 type BooleanLiteral struct {
@@ -161,11 +161,11 @@ func (b *BinaryExpression) Eval(env *Environment) (Value, error) {
 	case String:
 		switch b.Op {
 		case lexer.PlusToken:
-			return Value{Type: String, String: left.String + right.String}, nil
+			return Value{Type: String, Str: left.Str + right.Str}, nil
 		case lexer.EqualToken:
-			return Value{Type: Boolean, Boolean: left.String == right.String}, nil
+			return Value{Type: Boolean, Boolean: left.Str == right.Str}, nil
 		case lexer.NotEqualToken:
-			return Value{Type: Boolean, Boolean: left.String != right.String}, nil
+			return Value{Type: Boolean, Boolean: left.Str != right.Str}, nil
 		default:
 			return Value{}, fmt.Errorf("unknown operator for strings: %s", b.Op)
 		}
@@ -329,49 +329,6 @@ func (i *IndexAssignmentStatement) Execute(env *Environment) error {
 	return nil
 }
 
-type PrintStatement struct {
-	Expression Expression
-}
-
-func (p *PrintStatement) String() string {
-	return fmt.Sprintf("print %s", p.Expression.String())
-}
-
-func (p *PrintStatement) Execute(env *Environment) error {
-	value, err := p.Expression.Eval(env)
-	if err != nil {
-		return err
-	}
-	switch value.Type {
-	case Number:
-		fmt.Println(value.Number)
-	case String:
-		fmt.Println(value.String)
-	case Boolean:
-		fmt.Println(value.Boolean)
-	case Array:
-		var elements []string
-		for _, elem := range value.Array {
-			switch elem.Type {
-			case Number:
-				elements = append(elements, fmt.Sprintf("%f", elem.Number))
-			case String:
-				elements = append(elements, fmt.Sprintf("%q", elem.String))
-			case Boolean:
-				elements = append(elements, fmt.Sprintf("%t", elem.Boolean))
-			default:
-				return fmt.Errorf("unsupported element type in array: %s", elem.Type)
-			}
-		}
-		fmt.Println(elements)
-	case Function:
-		fmt.Println(value.Function)
-	default:
-		return fmt.Errorf("unsupported value type for print: %s", value.Type)
-	}
-	return nil
-}
-
 type IfStatement struct {
 	Condition Expression
 	Then      []Statement
@@ -532,6 +489,20 @@ func (f FunctionCallExpression) Eval(env *Environment) (Value, error) {
 	if !ok {
 		return Value{}, fmt.Errorf("undefined function: %s", f.Name)
 	}
+
+	if resolved.Type == NativeFunction {
+		var args []Value
+		for _, arg := range f.Args {
+			v, err := arg.Eval(env)
+			if err != nil {
+				return Value{}, err
+			}
+			args = append(args, v)
+		}
+		nativeFn := resolved.NativeFunction
+		return nativeFn(args)
+	}
+
 	if resolved.Type != Function {
 		return Value{}, fmt.Errorf("function call to non-function type: %s", f.Name)
 	}
