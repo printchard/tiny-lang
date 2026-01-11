@@ -61,6 +61,12 @@ func (p *Parser) match(expected lexer.TokenType) error {
 	return p.error(fmt.Sprintf("expected %s, found %s", expected, p.peek()))
 }
 
+func (p *Parser) unmatch() {
+	if p.current > 0 {
+		p.current--
+	}
+}
+
 func (p *Parser) Parse() ([]Statement, error) {
 	return p.parseProgram()
 }
@@ -112,17 +118,19 @@ func (p *Parser) parseStatement() (Statement, error) {
 	case lexer.ReturnToken:
 		return p.parseReturnStatement()
 	case lexer.IdentToken:
-		ident := p.peekToken()
 		p.match(lexer.IdentToken)
 		if p.peek() == lexer.AssignToken {
-			return p.parseAssignStatement(ident)
+			p.unmatch()
+			return p.parseAssignStatement()
 		} else if p.peek() == lexer.LeftParenToken {
-			expr, err := p.parseFunctionCall(ident)
+			p.unmatch()
+			expr, err := p.parseFunctionCall()
 			if err != nil {
 				return nil, err
 			}
 			return ExpressionStatement{expr}, nil
 		}
+		p.unmatch()
 		fallthrough
 	default:
 		expr, err := p.parseLogicalExpression()
@@ -158,7 +166,11 @@ func (p *Parser) parseDeclareStatement() (Statement, error) {
 	}, nil
 }
 
-func (p *Parser) parseAssignStatement(ident lexer.Token) (Statement, error) {
+func (p *Parser) parseAssignStatement() (Statement, error) {
+	ident := p.peekToken()
+	if err := p.match(lexer.IdentToken); err != nil {
+		return nil, err
+	}
 	if p.peek() == lexer.LeftBracketToken {
 		if err := p.match(lexer.LeftBracketToken); err != nil {
 			return nil, err
@@ -556,7 +568,8 @@ func (p *Parser) parsePrimary() (Expression, error) {
 		token := p.peekToken()
 		p.match(lexer.IdentToken)
 		if p.peek() == lexer.LeftParenToken {
-			return p.parseFunctionCall(token)
+			p.unmatch()
+			return p.parseFunctionCall()
 		}
 		return &Identifier{token}, nil
 	case lexer.LeftBracketToken:
@@ -650,7 +663,11 @@ func (p *Parser) parseArgumentStatement() ([]*Identifier, error) {
 	return decls, nil
 }
 
-func (p *Parser) parseFunctionCall(ident lexer.Token) (Expression, error) {
+func (p *Parser) parseFunctionCall() (Expression, error) {
+	ident := p.peekToken()
+	if err := p.match(lexer.IdentToken); err != nil {
+		return nil, err
+	}
 	var fnCall FunctionCallExpression
 	fnCall.Name = &Identifier{ident}
 	leftParen := p.peekToken()

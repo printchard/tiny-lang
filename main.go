@@ -77,9 +77,22 @@ func repl() {
 		}
 
 		p := parser.New(tokens)
-		if err := p.Execute(env); err != nil {
+		stmts, err := p.Parse()
+		if err != nil {
 			fmt.Println(err)
 			continue
+		}
+		for _, stmt := range stmts {
+			if expr, ok := stmt.(parser.ExpressionStatement); ok {
+				val, err := expr.ExecuteValue(env)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				fmt.Println(val)
+			} else if err := stmt.Execute(env); err != nil {
+				fmt.Println(err)
+			}
 		}
 	}
 }

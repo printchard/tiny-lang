@@ -516,6 +516,14 @@ func (e ExpressionStatement) Execute(env *Environment) error {
 	return err
 }
 
+func (e ExpressionStatement) ExecuteValue(env *Environment) (Value, error) {
+	val, err := e.Expr.Eval(env)
+	if err != nil {
+		return Value{}, err
+	}
+	return val, nil
+}
+
 func (e ExpressionStatement) String() string {
 	return e.Expr.String()
 }
