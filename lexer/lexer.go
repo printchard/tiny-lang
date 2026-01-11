@@ -12,6 +12,20 @@ type Lexer struct {
 	column   int
 }
 
+type LexerError struct {
+	Msg    string
+	line   int
+	column int
+}
+
+func (e *LexerError) Error() string {
+	return fmt.Sprintf("[Line %d:%d]: %s", e.line, e.column, e.Msg)
+}
+
+func (e *LexerError) Format(fileName string) string {
+	return fmt.Sprintf("[%s:%d:%d]: %s", fileName, e.line, e.column, e.Msg)
+}
+
 func New(input string) *Lexer {
 	return &Lexer{
 		input:  input,
@@ -21,8 +35,7 @@ func New(input string) *Lexer {
 }
 
 func (l *Lexer) error(msg string) error {
-	return fmt.Errorf("lexer error at line %d, column %d: %s",
-		l.line, l.column, msg)
+	return &LexerError{Msg: msg, line: l.line, column: l.column}
 }
 
 func (l *Lexer) peek() rune {

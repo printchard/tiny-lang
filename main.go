@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -16,8 +17,8 @@ func main() {
 		return
 	}
 
-	inputFile := os.Args[1]
-	input, err := os.ReadFile(inputFile)
+	path := os.Args[1]
+	input, err := os.ReadFile(path)
 	if err != nil {
 		fmt.Println("Error reading file:", err)
 		return
@@ -25,13 +26,28 @@ func main() {
 	lex := lexer.New(string(input))
 	tokens, err := lex.Tokenize()
 	if err != nil {
-		panic(err)
+		var lexerErr *lexer.LexerError
+		if errors.As(err, &lexerErr) {
+			fmt.Println(lexerErr.Format(path))
+		} else {
+			fmt.Printf("Generic Error: %v\n", err)
+		}
+		os.Exit(1)
 	}
 
 	p := parser.New(tokens)
 	env := parser.NewDefaultEnvironment()
 	if err := p.Execute(env); err != nil {
-		panic(err)
+		var parserErr *parser.ParserError
+		var runtimeErr *parser.RuntimeError
+		if errors.As(err, &runtimeErr) {
+			fmt.Println(runtimeErr.Format(path, string(input)))
+		} else if errors.As(err, &parserErr) {
+			fmt.Println(parserErr.Format(path))
+		} else {
+			fmt.Printf("Generic Error: %v\n", err)
+		}
+		os.Exit(1)
 	}
 }
 

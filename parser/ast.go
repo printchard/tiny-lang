@@ -10,6 +10,7 @@ import (
 
 type Node interface {
 	String() string
+	GetToken() lexer.Token
 }
 
 type Expression interface {
@@ -32,6 +33,11 @@ func (s *ReturnSignal) Error() string {
 
 type NumberLiteral struct {
 	Value float64
+	lexer.Token
+}
+
+func (n *NumberLiteral) GetToken() lexer.Token {
+	return n.Token
 }
 
 func (n *NumberLiteral) String() string {
@@ -44,6 +50,11 @@ func (n *NumberLiteral) Eval(env *Environment) (Value, error) {
 
 type StringLiteral struct {
 	Value string
+	lexer.Token
+}
+
+func (s *StringLiteral) GetToken() lexer.Token {
+	return s.Token
 }
 
 func (s *StringLiteral) String() string {
@@ -56,6 +67,11 @@ func (s *StringLiteral) Eval(env *Environment) (Value, error) {
 
 type BooleanLiteral struct {
 	Value bool
+	lexer.Token
+}
+
+func (b *BooleanLiteral) GetToken() lexer.Token {
+	return b.Token
 }
 
 func (b *BooleanLiteral) String() string {
@@ -68,6 +84,11 @@ func (b *BooleanLiteral) Eval(env *Environment) (Value, error) {
 
 type ArrayLiteral struct {
 	Elements []Expression
+	lexer.Token
+}
+
+func (a *ArrayLiteral) GetToken() lexer.Token {
+	return a.Token
 }
 
 func (a *ArrayLiteral) String() string {
@@ -92,24 +113,33 @@ func (a *ArrayLiteral) Eval(env *Environment) (Value, error) {
 }
 
 type Identifier struct {
-	Name string
+	Token lexer.Token
+}
+
+func (i *Identifier) GetToken() lexer.Token {
+	return i.Token
 }
 
 func (i *Identifier) String() string {
-	return i.Name
+	return i.Token.Literal
 }
 
 func (i *Identifier) Eval(env *Environment) (Value, error) {
-	if value, ok := env.Get(i.Name); ok {
+	if value, ok := env.Get(i.String()); ok {
 		return value, nil
 	}
-	return Value{}, fmt.Errorf("undefined variable: %s", i.Name)
+	return Value{}, NewRuntimeError(i, fmt.Sprintf("undefined variable: %s", i.String()))
 }
 
 type BinaryExpression struct {
-	Left  Expression
-	Op    lexer.TokenType
-	Right Expression
+	Left    Expression
+	Op      lexer.TokenType
+	Right   Expression
+	OpToken lexer.Token
+}
+
+func (b *BinaryExpression) GetToken() lexer.Token {
+	return b.OpToken
 }
 
 func (b *BinaryExpression) String() string {
@@ -126,7 +156,7 @@ func (b *BinaryExpression) Eval(env *Environment) (Value, error) {
 		return Value{}, err
 	}
 	if left.Type != right.Type {
-		return Value{}, fmt.Errorf("type mismatch: %s and %s", left.Type, right.Type)
+		return Value{}, NewRuntimeError(b, fmt.Sprintf("type mismatch: %s and %s", left.Type, right.Type))
 	}
 
 	switch left.Type {
@@ -140,7 +170,7 @@ func (b *BinaryExpression) Eval(env *Environment) (Value, error) {
 			return Value{Type: Number, Number: left.Number * right.Number}, nil
 		case lexer.DivideToken:
 			if right.Number == 0 {
-				return Value{}, fmt.Errorf("division by zero")
+				return Value{}, NewRuntimeError(b, "division by zero")
 			}
 			return Value{Type: Number, Number: left.Number / right.Number}, nil
 		case lexer.EqualToken:
@@ -156,7 +186,7 @@ func (b *BinaryExpression) Eval(env *Environment) (Value, error) {
 		case lexer.GEQToken:
 			return Value{Type: Boolean, Boolean: left.Number >= right.Number}, nil
 		default:
-			return Value{}, fmt.Errorf("unknown operator: %s", b.Op)
+			return Value{}, NewRuntimeError(b, fmt.Sprintf("unknown operator: %s", b.Op))
 		}
 	case String:
 		switch b.Op {
@@ -167,7 +197,7 @@ func (b *BinaryExpression) Eval(env *Environment) (Value, error) {
 		case lexer.NotEqualToken:
 			return Value{Type: Boolean, Boolean: left.Str != right.Str}, nil
 		default:
-			return Value{}, fmt.Errorf("unknown operator for strings: %s", b.Op)
+			return Value{}, NewRuntimeError(b, fmt.Sprintf("unknown operator for strings: %s", b.Op))
 		}
 	case Boolean:
 		switch b.Op {
@@ -180,16 +210,21 @@ func (b *BinaryExpression) Eval(env *Environment) (Value, error) {
 		case lexer.OrToken:
 			return Value{Type: Boolean, Boolean: left.Boolean || right.Boolean}, nil
 		default:
-			return Value{}, fmt.Errorf("unknown operator for booleans: %s", b.Op)
+			return Value{}, NewRuntimeError(b, fmt.Sprintf("unknown operator for booleans: %s", b.Op))
 		}
 	default:
-		return Value{}, fmt.Errorf("unsupported type for binary operation: %s", left.Type)
+		return Value{}, NewRuntimeError(b, fmt.Sprintf("unsupported type for binary operation: %s", left.Type))
 	}
 }
 
 type UnaryExpression struct {
-	Op    lexer.TokenType
-	Right Expression
+	Op      lexer.TokenType
+	Right   Expression
+	OpToken lexer.Token
+}
+
+func (u *UnaryExpression) GetToken() lexer.Token {
+	return u.OpToken
 }
 
 func (u *UnaryExpression) String() string {
@@ -207,23 +242,28 @@ func (u *UnaryExpression) Eval(env *Environment) (Value, error) {
 		case lexer.MinusToken:
 			return Value{Type: Number, Number: -value.Number}, nil
 		default:
-			return Value{}, fmt.Errorf("unknown unary operator: %s", u.Op)
+			return Value{}, NewRuntimeError(u, fmt.Sprintf("unknown unary operator: %s", u.Op))
 		}
 	case Boolean:
 		switch u.Op {
 		case lexer.NotToken:
 			return Value{Type: Boolean, Boolean: !value.Boolean}, nil
 		default:
-			return Value{}, fmt.Errorf("unknown unary operator for boolean: %s", u.Op)
+			return Value{}, NewRuntimeError(u, fmt.Sprintf("unknown unary operator for boolean: %s", u.Op))
 		}
 	default:
-		return Value{}, fmt.Errorf("unsupported type for unary operation: %s", value.Type)
+		return Value{}, NewRuntimeError(u, fmt.Sprintf("unsupported type for unary operation: %s", value.Type))
 	}
 }
 
 type PostfixExpression struct {
-	Left  Expression
-	Index Expression
+	Left         Expression
+	Index        Expression
+	BracketToken lexer.Token
+}
+
+func (p *PostfixExpression) GetToken() lexer.Token {
+	return p.BracketToken
 }
 
 func (p *PostfixExpression) String() string {
@@ -240,13 +280,13 @@ func (p *PostfixExpression) Eval(env *Environment) (Value, error) {
 		return Value{}, err
 	}
 	if left.Type != Array {
-		return Value{}, fmt.Errorf("left side of postfix expression must be an array, got %s", left.Type)
+		return Value{}, NewRuntimeError(p, fmt.Sprintf("left side of postfix expression must be an array, got %s", left.Type))
 	}
 	if index.Type != Number {
-		return Value{}, fmt.Errorf("index must be a number, got %s", index.Type)
+		return Value{}, NewRuntimeError(p, fmt.Sprintf("index must be a number, got %s", index.Type))
 	}
 	if int(index.Number) < 0 || int(index.Number) >= len(left.Array) {
-		return Value{}, fmt.Errorf("index out of bounds: %d", int(index.Number))
+		return Value{}, NewRuntimeError(p, fmt.Sprintf("index out of bounds: %d", int(index.Number)))
 	}
 	return left.Array[int(index.Number)], nil
 }
@@ -254,6 +294,11 @@ func (p *PostfixExpression) Eval(env *Environment) (Value, error) {
 type DeclarationStatement struct {
 	Identifier *Identifier
 	Value      Expression
+	LetToken   lexer.Token
+}
+
+func (d *DeclarationStatement) GetToken() lexer.Token {
+	return d.LetToken
 }
 
 func (d *DeclarationStatement) String() string {
@@ -261,21 +306,26 @@ func (d *DeclarationStatement) String() string {
 }
 
 func (d *DeclarationStatement) Execute(env *Environment) error {
-	if _, ok := env.Get(d.Identifier.Name); ok {
-		return fmt.Errorf("variable already declared: %s", d.Identifier.Name)
+	if _, ok := env.Get(d.Identifier.String()); ok {
+		return NewRuntimeError(d, fmt.Sprintf("variable already declared: %s", d.Identifier.String()))
 	}
 	value, err := d.Value.Eval(env)
 	if err != nil {
 		return err
 	}
 
-	env.Define(d.Identifier.Name, value)
+	env.Define(d.Identifier.String(), value)
 	return nil
 }
 
 type AssignmentStatement struct {
-	Identifier *Identifier
-	Value      Expression
+	Identifier  *Identifier
+	Value       Expression
+	AssignToken lexer.Token
+}
+
+func (a *AssignmentStatement) GetToken() lexer.Token {
+	return a.AssignToken
 }
 
 func (a *AssignmentStatement) String() string {
@@ -283,21 +333,26 @@ func (a *AssignmentStatement) String() string {
 }
 
 func (a *AssignmentStatement) Execute(env *Environment) error {
-	if _, ok := env.Get(a.Identifier.Name); !ok {
-		return fmt.Errorf("undefined variable: %s", a.Identifier.Name)
+	if _, ok := env.Get(a.Identifier.String()); !ok {
+		return NewRuntimeError(a, fmt.Sprintf("undefined variable: %s", a.Identifier.String()))
 	}
 	value, err := a.Value.Eval(env)
 	if err != nil {
 		return err
 	}
-	env.Set(a.Identifier.Name, value)
+	env.Set(a.Identifier.String(), value)
 	return nil
 }
 
 type IndexAssignmentStatement struct {
-	Left  *Identifier
-	Index Expression
-	Value Expression
+	Left        *Identifier
+	Index       Expression
+	Value       Expression
+	AssignToken lexer.Token
+}
+
+func (i *IndexAssignmentStatement) GetToken() lexer.Token {
+	return i.AssignToken
 }
 
 func (i *IndexAssignmentStatement) String() string {
@@ -305,11 +360,11 @@ func (i *IndexAssignmentStatement) String() string {
 }
 
 func (i *IndexAssignmentStatement) Execute(env *Environment) error {
-	arr, ok := env.Get(i.Left.Name)
+	arr, ok := env.Get(i.Left.String())
 	if !ok {
-		return fmt.Errorf("undefined variable: %s", i.Left.Name)
+		return NewRuntimeError(i, fmt.Sprintf("undefined variable: %s", i.Left.String()))
 	} else if arr.Type != Array {
-		return fmt.Errorf("left side of index assignment must be an array, got %s", arr.Type)
+		return NewRuntimeError(i, fmt.Sprintf("left side of index assignment must be an array, got %s", arr.Type))
 	}
 	index, err := i.Index.Eval(env)
 	if err != nil {
@@ -320,10 +375,10 @@ func (i *IndexAssignmentStatement) Execute(env *Environment) error {
 		return err
 	}
 	if index.Type != Number {
-		return fmt.Errorf("index must be a number, got %s", index.Type)
+		return NewRuntimeError(i, fmt.Sprintf("index must be a number, got %s", index.Type))
 	}
 	if int(index.Number) < 0 || int(index.Number) >= len(arr.Array) {
-		return fmt.Errorf("index out of bounds: %d", int(index.Number))
+		return NewRuntimeError(i, fmt.Sprintf("index out of bounds: %d", int(index.Number)))
 	}
 	arr.Array[int(index.Number)] = value
 	return nil
@@ -333,6 +388,11 @@ type IfStatement struct {
 	Condition Expression
 	Then      []Statement
 	Else      []Statement
+	IfToken   lexer.Token
+}
+
+func (i *IfStatement) GetToken() lexer.Token {
+	return i.IfToken
 }
 
 func (i *IfStatement) String() string {
@@ -354,7 +414,7 @@ func (i *IfStatement) Execute(env *Environment) error {
 	}
 
 	if val.Type != Boolean {
-		return fmt.Errorf("condition must evaluate to boolean, got %s", val.Type)
+		return NewRuntimeError(i, fmt.Sprintf("condition must evaluate to boolean, got %s", val.Type))
 	}
 
 	childEnv := NewEnvironment(env)
@@ -376,8 +436,13 @@ func (i *IfStatement) Execute(env *Environment) error {
 }
 
 type WhileStatement struct {
-	Condition Expression
-	Body      []Statement
+	Condition  Expression
+	Body       []Statement
+	WhileToken lexer.Token
+}
+
+func (w *WhileStatement) GetToken() lexer.Token {
+	return w.WhileToken
 }
 
 func (w *WhileStatement) String() string {
@@ -395,7 +460,7 @@ func (w *WhileStatement) Execute(env *Environment) error {
 	}
 
 	if val.Type != Boolean {
-		return fmt.Errorf("condition must evaluate to boolean, got %s", val.Type)
+		return NewRuntimeError(w, fmt.Sprintf("condition must evaluate to boolean, got %s", val.Type))
 	}
 
 	for val.Boolean {
@@ -412,7 +477,7 @@ func (w *WhileStatement) Execute(env *Environment) error {
 		}
 
 		if val.Type != Boolean {
-			return fmt.Errorf("condition must evaluate to boolean, got %s", val.Type)
+			return NewRuntimeError(w, fmt.Sprintf("condition must evaluate to boolean, got %s", val.Type))
 		}
 	}
 	return nil
@@ -443,51 +508,65 @@ type ExpressionStatement struct {
 	Expr Expression
 }
 
+func (e ExpressionStatement) GetToken() lexer.Token {
+	return e.Expr.GetToken()
+}
+
 func (e ExpressionStatement) Execute(env *Environment) error {
 	_, err := e.Expr.Eval(env)
 	return err
 }
 
-// String implements [Statement].
 func (e ExpressionStatement) String() string {
 	return e.Expr.String()
 }
 
 type FunctionStatement struct {
-	Name *Identifier
-	Args []*Identifier
-	Body []Statement
+	Name      *Identifier
+	Args      []*Identifier
+	Body      []Statement
+	FuncToken lexer.Token
+}
+
+func (f FunctionStatement) GetToken() lexer.Token {
+	return f.FuncToken
 }
 
 func (f FunctionStatement) Execute(env *Environment) error {
 	var argNames []string
 	for _, arg := range f.Args {
-		argNames = append(argNames, arg.Name)
+		argNames = append(argNames, arg.String())
 	}
 	funcVal := Func{ArgNames: argNames, Body: f.Body}
-	env.Set(f.Name.Name, Value{Type: Function, Function: funcVal})
+	env.Set(f.Name.String(), Value{Type: Function, Function: funcVal})
 	return nil
 }
 
 func (f FunctionStatement) String() string {
 	var str strings.Builder
-	for _, e := range f.Body {
-		fmt.Fprintf(&str, "%s\n", e)
+	fmt.Fprintf(&str, "func %s(", f.Name)
+	str.WriteString(") {\n")
+	for _, stmt := range f.Body {
+		str.WriteString("  " + stmt.String() + "\n")
 	}
-
-	fmt.Fprintf(&str, "func %s {\n%s}", f.Name, str.String())
+	str.WriteString("}")
 	return str.String()
 }
 
 type FunctionCallExpression struct {
-	Name *Identifier
-	Args []Expression
+	Name      *Identifier
+	Args      []Expression
+	LeftParen lexer.Token
+}
+
+func (f FunctionCallExpression) GetToken() lexer.Token {
+	return f.LeftParen
 }
 
 func (f FunctionCallExpression) Eval(env *Environment) (Value, error) {
-	resolved, ok := env.Get(f.Name.Name)
+	resolved, ok := env.Get(f.Name.String())
 	if !ok {
-		return Value{}, fmt.Errorf("undefined function: %s", f.Name)
+		return Value{}, NewRuntimeError(f, fmt.Sprintf("undefined function: %s", f.Name))
 	}
 
 	if resolved.Type == NativeFunction {
@@ -504,14 +583,14 @@ func (f FunctionCallExpression) Eval(env *Environment) (Value, error) {
 	}
 
 	if resolved.Type != Function {
-		return Value{}, fmt.Errorf("function call to non-function type: %s", f.Name)
+		return Value{}, NewRuntimeError(f, fmt.Sprintf("function call to non-function type: %s", f.Name))
 	}
 
 	funcVal := resolved.Function
 	if len(f.Args) > len(funcVal.ArgNames) {
-		return Value{}, fmt.Errorf("too many arguments for function %s", f.Name)
+		return Value{}, NewRuntimeError(f, fmt.Sprintf("too many arguments for function %s", f.Name))
 	} else if len(f.Args) < len(funcVal.ArgNames) {
-		return Value{}, fmt.Errorf("too few arguments for function %s", f.Name)
+		return Value{}, NewRuntimeError(f, fmt.Sprintf("too few arguments for function %s", f.Name))
 	}
 
 	funcEnv := NewEnvironment(env)
@@ -548,7 +627,12 @@ func (f FunctionCallExpression) String() string {
 }
 
 type ReturnStatement struct {
-	Return Expression
+	Return      Expression
+	ReturnToken lexer.Token
+}
+
+func (r *ReturnStatement) GetToken() lexer.Token {
+	return r.ReturnToken
 }
 
 func (r ReturnStatement) Execute(env *Environment) error {
@@ -564,4 +648,40 @@ func (r ReturnStatement) Execute(env *Environment) error {
 
 func (r ReturnStatement) String() string {
 	return fmt.Sprintf("return %s", r.Return)
+}
+
+type RuntimeError struct {
+	Msg string
+	lexer.Token
+}
+
+func (e *RuntimeError) Error() string {
+	return fmt.Sprintf("[Line %d:%d]: %s", e.Token.Line, e.Token.Column, e.Msg)
+}
+
+func (e *RuntimeError) Format(fileName, source string) string {
+	lines := strings.Split(source, "\n")
+	if e.Line > len(lines) || e.Line < 1 {
+		return fmt.Sprintf("[%s:%d:%d]: %s", fileName, e.Token.Line, e.Token.Column, e.Msg)
+	}
+
+	errorLine := lines[e.Line-1]
+
+	var caretPadding strings.Builder
+	for i := 2; i < e.Token.Column; i++ {
+		if i < len(errorLine) && errorLine[i-1] == '\t' {
+			caretPadding.WriteString("\t")
+		} else {
+			caretPadding.WriteString(" ")
+		}
+	}
+
+	return fmt.Sprintf(
+		"[%s:%d:%d]: %s\n    %s\n    %s^",
+		fileName, e.Line, e.Column, e.Msg, errorLine, caretPadding.String(),
+	)
+}
+
+func NewRuntimeError(n Node, msg string) error {
+	return &RuntimeError{Msg: msg, Token: n.GetToken()}
 }
