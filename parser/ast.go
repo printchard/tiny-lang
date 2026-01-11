@@ -112,6 +112,20 @@ func (a *ArrayLiteral) Eval(env *Environment) (Value, error) {
 	return Value{Type: Array, Array: values}, nil
 }
 
+type VoidLiteral lexer.Token
+
+func (v VoidLiteral) Eval(env *Environment) (Value, error) {
+	return Value{}, nil
+}
+
+func (v VoidLiteral) GetToken() lexer.Token {
+	return lexer.Token(v)
+}
+
+func (v VoidLiteral) String() string {
+	return "void"
+}
+
 type Identifier struct {
 	Token lexer.Token
 }
@@ -199,21 +213,20 @@ func (b *BinaryExpression) Eval(env *Environment) (Value, error) {
 		default:
 			return Value{}, NewRuntimeError(b, fmt.Sprintf("unknown operator for strings: %s", b.Op))
 		}
-	case Boolean:
+	default:
+		bLeft, bRight := left.AsBoolean(), right.AsBoolean()
 		switch b.Op {
 		case lexer.EqualToken:
-			return Value{Type: Boolean, Boolean: left.Boolean == right.Boolean}, nil
+			return Value{Type: Boolean, Boolean: bLeft == bRight}, nil
 		case lexer.NotEqualToken:
-			return Value{Type: Boolean, Boolean: left.Boolean != right.Boolean}, nil
+			return Value{Type: Boolean, Boolean: bLeft != bRight}, nil
 		case lexer.AndToken:
-			return Value{Type: Boolean, Boolean: left.Boolean && right.Boolean}, nil
+			return Value{Type: Boolean, Boolean: bLeft && bRight}, nil
 		case lexer.OrToken:
-			return Value{Type: Boolean, Boolean: left.Boolean || right.Boolean}, nil
+			return Value{Type: Boolean, Boolean: bLeft || bRight}, nil
 		default:
-			return Value{}, NewRuntimeError(b, fmt.Sprintf("unknown operator for booleans: %s", b.Op))
+			return Value{}, NewRuntimeError(b, fmt.Sprintf("unsupported types for binary operations: %s, %s", left.Type, right.Type))
 		}
-	default:
-		return Value{}, NewRuntimeError(b, fmt.Sprintf("unsupported type for binary operation: %s", left.Type))
 	}
 }
 
@@ -244,15 +257,13 @@ func (u *UnaryExpression) Eval(env *Environment) (Value, error) {
 		default:
 			return Value{}, NewRuntimeError(u, fmt.Sprintf("unknown unary operator: %s", u.Op))
 		}
-	case Boolean:
+	default:
 		switch u.Op {
 		case lexer.NotToken:
-			return Value{Type: Boolean, Boolean: !value.Boolean}, nil
+			return Value{Type: Boolean, Boolean: value.AsBoolean()}, nil
 		default:
 			return Value{}, NewRuntimeError(u, fmt.Sprintf("unknown unary operator for boolean: %s", u.Op))
 		}
-	default:
-		return Value{}, NewRuntimeError(u, fmt.Sprintf("unsupported type for unary operation: %s", value.Type))
 	}
 }
 
@@ -413,13 +424,9 @@ func (i *IfStatement) Execute(env *Environment) error {
 		return err
 	}
 
-	if val.Type != Boolean {
-		return NewRuntimeError(i, fmt.Sprintf("condition must evaluate to boolean, got %s", val.Type))
-	}
-
 	childEnv := NewEnvironment(env)
 
-	if val.Boolean {
+	if val.AsBoolean() {
 		for _, stmt := range i.Then {
 			if err := stmt.Execute(childEnv); err != nil {
 				return err
@@ -459,11 +466,7 @@ func (w *WhileStatement) Execute(env *Environment) error {
 		return err
 	}
 
-	if val.Type != Boolean {
-		return NewRuntimeError(w, fmt.Sprintf("condition must evaluate to boolean, got %s", val.Type))
-	}
-
-	for val.Boolean {
+	for val.AsBoolean() {
 		childEnv := NewEnvironment(env)
 		for _, stmt := range w.Body {
 			if err := stmt.Execute(childEnv); err != nil {
@@ -474,10 +477,6 @@ func (w *WhileStatement) Execute(env *Environment) error {
 		val, err = w.Condition.Eval(env)
 		if err != nil {
 			return err
-		}
-
-		if val.Type != Boolean {
-			return NewRuntimeError(w, fmt.Sprintf("condition must evaluate to boolean, got %s", val.Type))
 		}
 	}
 	return nil

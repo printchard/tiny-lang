@@ -38,10 +38,10 @@ unary = "-" unary | factor
 
 factor = primary { "[" expression "]" }
 
-primary = number | identifier | "(" expression ")" | string | array-literal | "true" | "false" | function-call
+primary = number | identifier | "(" expression ")" | string | array-literal | "true" | "false" | function-call | "void"
 
 function-call = identifier "(" [ expression-list ] ")"
 
-expression-list = logical-expression { "," logical-expression }
-
 array-literal = "[" [ expression-list ] "]"
+
+expression-list = logical-expression { "," logical-expression }

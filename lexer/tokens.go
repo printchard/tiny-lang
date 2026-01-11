@@ -38,6 +38,7 @@ const (
 	CommaToken
 	FunctionToken
 	ReturnToken
+	VoidToken
 )
 
 func (t TokenType) String() string {
@@ -112,6 +113,8 @@ func (t TokenType) String() string {
 		return "FUNCTION"
 	case ReturnToken:
 		return "RETURN"
+	case VoidToken:
+		return "VOID"
 	default:
 		return "UNKNOWN"
 	}
@@ -122,22 +125,4 @@ type Token struct {
 	Literal string
 	Column  int
 	Line    int
-}
-
-func NewToken(t TokenType, col, line int) Token {
-	return Token{
-		Type:    t,
-		Literal: t.String(),
-		Column:  col,
-		Line:    line,
-	}
-}
-
-func NewTokenLiteral(t TokenType, col, line int, literal string) Token {
-	return Token{
-		Type:    t,
-		Literal: literal,
-		Column:  col,
-		Line:    line,
-	}
 }

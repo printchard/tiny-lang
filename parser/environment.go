@@ -67,7 +67,7 @@ func (env *Environment) Get(name string) (Value, bool) {
 type ValueType int
 
 const (
-	Unknown ValueType = iota
+	Void ValueType = iota
 	Number
 	String
 	Boolean
@@ -78,12 +78,21 @@ const (
 
 func (v ValueType) String() string {
 	switch v {
+	case Void:
+		return "Void"
 	case Number:
 		return "Number"
 	case String:
 		return "String"
 	case Boolean:
 		return "Boolean"
+	case Array:
+		return "Array"
+	case Function:
+		return "Function"
+	case NativeFunction:
+		return "NativeFn"
+
 	default:
 		return "unknown"
 	}
@@ -101,6 +110,8 @@ type Value struct {
 
 func (v Value) String() string {
 	switch v.Type {
+	case Void:
+		return "void"
 	case Number:
 		return fmt.Sprintf("%f", v.Number)
 	case String:
@@ -108,13 +119,30 @@ func (v Value) String() string {
 	case Boolean:
 		return fmt.Sprintf("%t", v.Boolean)
 	case Array:
-		return fmt.Sprintf("%v", Array)
+		return fmt.Sprintf("%v", v.Array)
 	case Function:
 		return "fn"
 	case NativeFunction:
 		return "nativeFn"
 	default:
 		return "Unknown value type"
+	}
+}
+
+func (v Value) AsBoolean() bool {
+	switch v.Type {
+	case Void:
+		return false
+	case Number:
+		return v.Number != 0
+	case Boolean:
+		return v.Boolean
+	case Array:
+		return len(v.Array) > 0
+	case String:
+		return len(v.Str) > 0
+	default:
+		return true
 	}
 }
 

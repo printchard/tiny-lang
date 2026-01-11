@@ -561,6 +561,10 @@ func (p *Parser) parsePrimary() (Expression, error) {
 		return &Identifier{token}, nil
 	case lexer.LeftBracketToken:
 		return p.parseArrayLiteral()
+	case lexer.VoidToken:
+		t := p.peekToken()
+		p.match(lexer.VoidToken)
+		return VoidLiteral(t), nil
 	default:
 		return nil, p.error(fmt.Sprintf("unexpected token in primary expression: %s", p.peek()))
 	}

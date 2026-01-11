@@ -38,6 +38,24 @@ func (l *Lexer) error(msg string) error {
 	return &LexerError{Msg: msg, line: l.line, column: l.column}
 }
 
+func (l *Lexer) newToken(t TokenType) Token {
+	return Token{
+		Type:    t,
+		Literal: t.String(),
+		Column:  l.column,
+		Line:    l.line,
+	}
+}
+
+func (l *Lexer) newTokenLiteral(t TokenType, literal string) Token {
+	return Token{
+		Type:    t,
+		Literal: literal,
+		Column:  l.column,
+		Line:    l.line,
+	}
+}
+
 func (l *Lexer) peek() rune {
 	if l.position >= len(l.input) {
 		return 0
@@ -101,75 +119,75 @@ func (l *Lexer) NextToken() (Token, error) {
 		l.next()
 		if l.peek() == '=' {
 			l.next()
-			return NewToken(EqualToken, l.column, l.line), nil
+			return l.newToken(EqualToken), nil
 		}
-		return NewToken(AssignToken, l.column, l.line), nil
+		return l.newToken(AssignToken), nil
 	case ':':
 		l.next()
 		if l.peek() != '=' {
-			return NewToken(ColonToken, l.column, l.line), nil
+			return l.newToken(ColonToken), nil
 		}
 		l.next()
-		return NewToken(DeclareToken, l.column, l.line), nil
+		return l.newToken(DeclareToken), nil
 	case '+':
 		l.next()
-		return NewToken(PlusToken, l.column, l.line), nil
+		return l.newToken(PlusToken), nil
 	case '-':
 		l.next()
-		return NewToken(MinusToken, l.column, l.line), nil
+		return l.newToken(MinusToken), nil
 	case '*':
 		l.next()
-		return NewToken(MultiplyToken, l.column, l.line), nil
+		return l.newToken(MultiplyToken), nil
 	case '/':
 		l.next()
-		return NewToken(DivideToken, l.column, l.line), nil
+		return l.newToken(DivideToken), nil
 	case '(':
 		l.next()
-		return NewToken(LeftParenToken, l.column, l.line), nil
+		return l.newToken(LeftParenToken), nil
 	case ')':
 		l.next()
-		return NewToken(RightParenToken, l.column, l.line), nil
+		return l.newToken(RightParenToken), nil
 	case '{':
 		l.next()
-		return NewToken(LeftBraceToken, l.column, l.line), nil
+		return l.newToken(LeftBraceToken), nil
 	case '}':
 		l.next()
-		return NewToken(RightBraceToken, l.column, l.line), nil
+		return l.newToken(RightBraceToken), nil
 	case '<':
 		l.next()
 		if l.peek() == '=' {
 			l.next()
-			return NewToken(LEQToken, l.column, l.line), nil
+			return l.newToken(LEQToken), nil
 		}
-		return NewToken(LTToken, l.column, l.line), nil
+		return l.newToken(LTToken), nil
 	case '>':
 		l.next()
 		if l.peek() == '=' {
 			l.next()
-			return NewToken(GEQToken, l.column, l.line), nil
+			return l.newToken(GEQToken), nil
 		}
-		return NewToken(GTToken, l.column, l.line), nil
+		return l.newToken(GTToken), nil
 	case '!':
 		l.next()
 		if l.peek() == '=' {
 			l.next()
-			return NewToken(NotEqualToken, l.column, l.line), nil
+			return l.newToken(NotEqualToken), nil
 		}
-		return NewToken(NotToken, l.column, l.line), nil
+		return l.newToken(NotToken), nil
 	case '&':
 		l.next()
 		if l.peek() != '&' {
 			return Token{}, l.error("expected '&' after '&'")
 		}
 		l.next()
-		return NewToken(AndToken, l.column, l.line), nil
+		return l.newToken(AndToken), nil
 	case '|':
 		l.next()
 		if l.peek() != '|' {
 			return Token{}, l.error("expected '|' after '|'")
 		}
 		l.next()
-		return NewToken(OrToken, l.column, l.line), nil
+		return l.newToken(OrToken), nil
 	case '"':
 		l.next()
 		start := l.position
@@ -188,41 +206,43 @@ func (l *Lexer) NextToken() (Token, error) {
 		}, nil
 	case '[':
 		l.next()
-		return NewToken(LeftBracketToken, l.column, l.line), nil
+		return l.newToken(LeftBracketToken), nil
 	case ']':
 		l.next()
-		return NewToken(RightBracketToken, l.column, l.line), nil
+		return l.newToken(RightBracketToken), nil
 	case ',':
 		l.next()
-		return NewToken(CommaToken, l.column, l.line), nil
+		return l.newToken(CommaToken), nil
 	}
 
 	if unicode.IsLetter(l.peek()) {
 		literal := l.readLiteral()
 		switch literal {
 		case "let":
-			return NewToken(LetToken, l.column, l.line), nil
+			return l.newToken(LetToken), nil
 		case "if":
-			return NewToken(IfToken, l.column, l.line), nil
+			return l.newToken(IfToken), nil
 		case "else":
-			return NewToken(ElseToken, l.column, l.line), nil
+			return l.newToken(ElseToken), nil
 		case "while":
-			return NewToken(WhileToken, l.column, l.line), nil
+			return l.newToken(WhileToken), nil
 		case "true":
-			return NewToken(TrueToken, l.column, l.line), nil
+			return l.newToken(TrueToken), nil
 		case "false":
-			return NewToken(FalseToken, l.column, l.line), nil
+			return l.newToken(FalseToken), nil
 		case "func":
-			return NewToken(FunctionToken, l.column, l.line), nil
+			return l.newToken(FunctionToken), nil
 		case "return":
-			return NewToken(ReturnToken, l.column, l.line), nil
+			return l.newToken(ReturnToken), nil
+		case "void":
+			return l.newToken(VoidToken), nil
 		default:
-			return NewTokenLiteral(IdentToken, l.column, l.line, literal), nil
+			return l.newTokenLiteral(IdentToken, literal), nil
 		}
 	}
 	if unicode.IsDigit(l.peek()) {
 		literal := l.readNumber()
-		return NewTokenLiteral(NumberToken, l.column, l.line, literal), nil
+		return l.newTokenLiteral(NumberToken, literal), nil
 	}
 
 	return Token{}, l.error("unexpected character")
