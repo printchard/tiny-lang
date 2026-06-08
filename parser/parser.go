@@ -580,10 +580,10 @@ func (p *Parser) parseFunctionStatement() (Statement, error) {
 		return nil, err
 	}
 
-	return &DeclarationStatement{
+	return &FunctionDeclarationStatement{
 		Identifier: &Identifier{Token: ident},
-		Value:      &FunctionLiteral{Params: params, Body: stmts, FuncToken: funcToken},
-		LetToken:   funcToken,
+		Fn:         &FunctionLiteral{Params: params, Body: stmts, FuncToken: funcToken},
+		FuncToken:  funcToken,
 	}, nil
 }
 

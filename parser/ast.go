@@ -358,6 +358,34 @@ func (d *DeclarationStatement) Execute(env *Environment) error {
 	return nil
 }
 
+type FunctionDeclarationStatement struct {
+	Identifier *Identifier
+	Fn         *FunctionLiteral
+	FuncToken  lexer.Token
+}
+
+func (f *FunctionDeclarationStatement) GetToken() lexer.Token {
+	return f.FuncToken
+}
+
+func (f *FunctionDeclarationStatement) String() string {
+	return fmt.Sprintf("func %s = %s ", f.Identifier, f.Fn)
+}
+
+func (f *FunctionDeclarationStatement) Execute(env *Environment) error {
+	if _, ok := env.Get(f.Identifier.String()); ok {
+		return NewRuntimeError(f, fmt.Sprintf("variable already declared: %s", f.Identifier.String()))
+	}
+
+	value, err := f.Fn.Eval(env)
+	if err != nil {
+		return err
+	}
+
+	env.Define(f.Identifier.String(), value)
+	return nil
+}
+
 type AssignmentStatement struct {
 	Identifier  *Identifier
 	Value       Expression
