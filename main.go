@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/printchard/tiny-lang/formatter"
 	"github.com/printchard/tiny-lang/lexer"
 	"github.com/printchard/tiny-lang/parser"
 )
@@ -18,9 +19,15 @@ func main() {
 	}
 
 	path := os.Args[1]
+
+	if path == "fmt" {
+		handleFormat(os.Args)
+		return
+	}
+
 	input, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Println("Error reading file:", err)
+		fmt.Fprintf(os.Stderr, "Error reading file: %s", err)
 		return
 	}
 	lex := lexer.New(string(input))
@@ -28,9 +35,9 @@ func main() {
 	if err != nil {
 		var lexerErr *lexer.LexerError
 		if errors.As(err, &lexerErr) {
-			fmt.Println(lexerErr.Format(path))
+			fmt.Fprintln(os.Stderr, lexerErr.Format(path))
 		} else {
-			fmt.Printf("Generic Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Generic Error: %v\n", err)
 		}
 		os.Exit(1)
 	}
@@ -41,11 +48,11 @@ func main() {
 		var parserErr *parser.ParserError
 		var runtimeErr *parser.RuntimeError
 		if errors.As(err, &runtimeErr) {
-			fmt.Println(runtimeErr.Format(path, string(input)))
+			fmt.Fprintln(os.Stderr, runtimeErr.Format(path, string(input)))
 		} else if errors.As(err, &parserErr) {
-			fmt.Println(parserErr.Format(path))
+			fmt.Fprintln(os.Stderr, parserErr.Format(path))
 		} else {
-			fmt.Printf("Generic Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Generic Error: %v\n", err)
 		}
 		os.Exit(1)
 	}
@@ -95,4 +102,25 @@ func repl() {
 			}
 		}
 	}
+}
+
+func handleFormat(args []string) {
+	if len(args) < 3 {
+		fmt.Fprintln(os.Stderr, "Not enough arguments to format")
+		os.Exit(1)
+	}
+
+	path := args[2]
+	source, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading file: %s", err)
+		os.Exit(1)
+	}
+
+	fmtSource, err := formatter.Format(string(source))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error formatting source: %s", err)
+		os.Exit(1)
+	}
+	fmt.Print(fmtSource)
 }
