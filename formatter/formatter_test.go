@@ -25,11 +25,11 @@ func TestFormatterIdempotency(t *testing.T) {
 	}
 
 	if fmtSource != fmt2Source {
-		t.Fatal("Format(source) != Format(Format(source))")
+		t.Error(cmp.Diff(fmtSource, fmt2Source))
 	}
 }
 
-func TestFormatterPrecendece(t *testing.T) {
+func TestFormatterPrecedence(t *testing.T) {
 	tests := []struct {
 		source string
 		want   string
