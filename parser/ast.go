@@ -289,7 +289,7 @@ func (u *UnaryExpression) Eval(env *Environment) (Value, error) {
 	default:
 		switch u.Op {
 		case lexer.NotToken:
-			return Value{Type: Boolean, Boolean: value.AsBoolean()}, nil
+			return Value{Type: Boolean, Boolean: !value.AsBoolean()}, nil
 		default:
 			return Value{}, NewRuntimeError(u, fmt.Sprintf("unknown unary operator for boolean: %s", u.Op))
 		}

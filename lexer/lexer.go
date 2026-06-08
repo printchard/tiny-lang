@@ -250,11 +250,14 @@ func (l *Lexer) NextToken() (Token, error) {
 
 func (l *Lexer) Tokenize() ([]Token, error) {
 	var tokens []Token
-	for currToken, err := l.NextToken(); currToken.Type != EOFToken; currToken, err = l.NextToken() {
+	for {
+		currToken, err := l.NextToken()
 		if err != nil {
 			return nil, err
 		}
+		if currToken.Type == EOFToken {
+			return tokens, nil
+		}
 		tokens = append(tokens, currToken)
 	}
-	return tokens, nil
 }

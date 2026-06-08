@@ -3,6 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 )
 
@@ -136,8 +137,10 @@ func callFunction(n Node, fn Value, args []Value) (Value, error) {
 }
 
 func NewDefaultEnvironment() *Environment {
+	variables := make(map[string]Value, len(defaultVars))
+	maps.Copy(variables, defaultVars)
 	return &Environment{
-		variables: defaultVars,
+		variables: variables,
 	}
 }
 
