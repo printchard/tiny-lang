@@ -149,4 +149,5 @@ func (v Value) AsBoolean() bool {
 type Func struct {
 	ArgNames []string
 	Body     []Statement
+	Env      *Environment
 }

@@ -126,6 +126,37 @@ func (v VoidLiteral) String() string {
 	return "void"
 }
 
+type FunctionLiteral struct {
+	Params    []*Identifier
+	Body      []Statement
+	FuncToken lexer.Token
+}
+
+func (f *FunctionLiteral) Eval(env *Environment) (Value, error) {
+	var names []string
+	for _, p := range f.Params {
+		names = append(names, p.String())
+	}
+	return Value{Type: Function, Function: Func{ArgNames: names, Body: f.Body, Env: env}}, nil
+}
+
+func (f *FunctionLiteral) GetToken() lexer.Token {
+	return f.FuncToken
+}
+
+func (f *FunctionLiteral) String() string {
+	var str strings.Builder
+	str.WriteString("func (\n")
+	str.WriteString(") {\n")
+	for _, stmt := range f.Body {
+		str.WriteString("  ")
+		str.WriteString(stmt.String())
+		str.WriteString("\n")
+	}
+	str.WriteString("}")
+	return str.String()
+}
+
 type Identifier struct {
 	Token lexer.Token
 }
@@ -532,40 +563,6 @@ func (e ExpressionStatement) String() string {
 	return e.Expr.String()
 }
 
-type FunctionStatement struct {
-	Name      *Identifier
-	Args      []*Identifier
-	Body      []Statement
-	FuncToken lexer.Token
-}
-
-func (f FunctionStatement) GetToken() lexer.Token {
-	return f.FuncToken
-}
-
-func (f FunctionStatement) Execute(env *Environment) error {
-	var argNames []string
-	for _, arg := range f.Args {
-		argNames = append(argNames, arg.String())
-	}
-	funcVal := Func{ArgNames: argNames, Body: f.Body}
-	env.Set(f.Name.String(), Value{Type: Function, Function: funcVal})
-	return nil
-}
-
-func (f FunctionStatement) String() string {
-	var str strings.Builder
-	fmt.Fprintf(&str, "func %s(", f.Name)
-	str.WriteString(") {\n")
-	for _, stmt := range f.Body {
-		str.WriteString("  ")
-		str.WriteString(stmt.String())
-		str.WriteString("\n")
-	}
-	str.WriteString("}")
-	return str.String()
-}
-
 type FunctionCallExpression struct {
 	Name      *Identifier
 	Args      []Expression
@@ -606,7 +603,7 @@ func (f FunctionCallExpression) Eval(env *Environment) (Value, error) {
 		return Value{}, NewRuntimeError(f, fmt.Sprintf("too few arguments for function %s", f.Name))
 	}
 
-	funcEnv := NewEnvironment(env)
+	funcEnv := NewEnvironment(funcVal.Env)
 	for i := 0; i < len(f.Args); i++ {
 		val, err := f.Args[i].Eval(env)
 		if err != nil {

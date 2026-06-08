@@ -533,6 +533,8 @@ func (p *Parser) parsePrimary() (Expression, error) {
 		t := p.peekToken()
 		p.match(lexer.VoidToken)
 		return VoidLiteral(t), nil
+	case lexer.FunctionToken:
+		return p.parseFunctionLiteral()
 	default:
 		return nil, p.error(fmt.Sprintf("unexpected token in primary expression: %s", p.peek()))
 	}
@@ -563,39 +565,67 @@ func (p *Parser) parseArrayLiteral() (Expression, error) {
 }
 
 func (p *Parser) parseFunctionStatement() (Statement, error) {
-	var funcStmt FunctionStatement
 	funcToken := p.peekToken()
 	if err := p.match(lexer.FunctionToken); err != nil {
 		return nil, err
 	}
+
 	ident := p.peekToken()
 	if err := p.match(lexer.IdentToken); err != nil {
 		return nil, err
 	}
-	funcStmt.Name = &Identifier{ident}
-	funcStmt.FuncToken = funcToken
-	if p.peek() == lexer.ColonToken {
-		args, err := p.parseParameterList()
-		if err != nil {
-			return nil, err
-		}
-		funcStmt.Args = args
-	}
 
-	if err := p.match(lexer.LeftBraceToken); err != nil {
+	params, stmts, err := p.parseFunctionBody()
+	if err != nil {
 		return nil, err
 	}
 
+	return &DeclarationStatement{
+		Identifier: &Identifier{Token: ident},
+		Value:      &FunctionLiteral{Params: params, Body: stmts, FuncToken: funcToken},
+		LetToken:   funcToken,
+	}, nil
+}
+
+func (p *Parser) parseFunctionLiteral() (Expression, error) {
+	tok := p.peekToken()
+	p.match(lexer.FunctionToken)
+	idents, stmts, err := p.parseFunctionBody()
+	if err != nil {
+		return nil, err
+	}
+
+	return &FunctionLiteral{
+		Params:    idents,
+		Body:      stmts,
+		FuncToken: tok,
+	}, nil
+}
+
+func (p *Parser) parseFunctionBody() ([]*Identifier, []Statement, error) {
+	var args []*Identifier
+	var err error
+	if p.peek() == lexer.ColonToken {
+		args, err = p.parseParameterList()
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if err := p.match(lexer.LeftBraceToken); err != nil {
+		return nil, nil, err
+	}
+
+	var stmts []Statement
 	for p.peek() != lexer.RightBraceToken {
 		stmt, err := p.parseStatement()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		funcStmt.Body = append(funcStmt.Body, stmt)
+		stmts = append(stmts, stmt)
 	}
-
 	p.match(lexer.RightBraceToken)
-	return funcStmt, nil
+	return args, stmts, nil
 }
 
 func (p *Parser) parseParameterList() ([]*Identifier, error) {
