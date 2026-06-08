@@ -1,47 +1,47 @@
 program = { statement }
 
-statement = declare-statement | assign-statement | print-statement | if-statement | while-statement | function-statement | return-statement | logical-expression
+statement = declare-statement | expression-statement | if-statement | while-statement | function-statement | return-statement
 
-function-statement = "func" identifier [ argument-statement ] "{" { statement } "}"
+function-statement = "func" identifier [ parameter-list ] "{" { statement } "}"
 
-argument-statement = ":" identifier { "," identifier }
+parameter-list = ":" identifier { "," identifier }
 
 return-statement = "return" [ expression ]
 
-declare-statement = "let" identifier ":=" logical-expression
+declare-statement = "let" identifier ":=" expression
 
-assign-statement = identifier "=" logical-expression
+expression-statement = expression [ "=" expression ]
 
-print-statement = "print" logical-expression
+if-statement = "if" expression "{" { statement } "}" { else-if-statement } [ else-statement ]
 
-if-statement = "if" logical-expression "{" { statement } "}" { else-if-statement } [ else-statement ]
-
-else-if-statement = "else" "if" logical-expression "{" { statement } "}"
+else-if-statement = "else" "if" expression "{" { statement } "}"
 
 else-statement = "else" "{" { statement } "}"
 
-while-statement = "while" logical-expression "{" { statement } "}"
+while-statement = "while" expression "{" { statement } "}"
 
-logical-expression = logical-term { "||" logical-term }
+expression = expression-term { "||" expression-term }
 
-logical-term = logical-unary { "&&" logical-unary }
+expression-term = expression-unary { "&&" expression-unary }
 
-logical-unary = "!" logical-unary | "(" logical-expression ")" | comparison
+expression-unary = "!" expression-unary | comparison
 
-comparison = expression [ ("==" | "!=" | ">" | ">=" | "<" | "<=") expression ]
+comparison = arithmetic [ ("==" | "!=" | ">" | ">=" | "<" | "<=") arithmetic ]
 
-expression = term { ("+" | "-") term }
+arithmetic = arithmetic-term { ("+" | "-") arithmetic-term }
 
-term = unary { ("*" | "/") unary }
+arithmetic-term = arithmetic-unary { ("*" | "/") arithmetic-unary }
 
-unary = "-" unary | factor
+arithmetic-unary = "-" arithmetic-unary | factor
 
-factor = primary { "[" expression "]" }
+factor = primary { "[" arithmetic "]" }
 
-primary = number | identifier | "(" expression ")" | string | array-literal | "true" | "false" | function-call | "void"
+primary = number | identifier | "(" expression ")" | string | array-literal | "true" | "false" | function-call | function-literal | "void"
+
+function-literal = "func" [ parameter-list ] "{" { statement } "}"
 
 function-call = identifier "(" [ expression-list ] ")"
 
 array-literal = "[" [ expression-list ] "]"
 
-expression-list = logical-expression { "," logical-expression }
+expression-list = expression { "," expression }

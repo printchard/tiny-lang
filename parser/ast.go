@@ -409,11 +409,13 @@ func (i *IfStatement) GetToken() lexer.Token {
 func (i *IfStatement) String() string {
 	var thenBody strings.Builder
 	for _, stmt := range i.Then {
-		thenBody.WriteString(stmt.String() + "\n")
+		thenBody.WriteString(stmt.String())
+		thenBody.WriteString("\n")
 	}
 	var elseBody strings.Builder
 	for _, stmt := range i.Else {
-		elseBody.WriteString(stmt.String() + "\n")
+		elseBody.WriteString(stmt.String())
+		elseBody.WriteString("\n")
 	}
 	return fmt.Sprintf("if %s {\n%s} else {\n%s}", i.Condition.String(), thenBody.String(), elseBody.String())
 }
@@ -455,7 +457,8 @@ func (w *WhileStatement) GetToken() lexer.Token {
 func (w *WhileStatement) String() string {
 	var body strings.Builder
 	for _, stmt := range w.Body {
-		body.WriteString(stmt.String() + "\n")
+		body.WriteString(stmt.String())
+		body.WriteString("\n")
 	}
 	return fmt.Sprintf("while %s {\n%s}", w.Condition.String(), body.String())
 }
@@ -489,7 +492,8 @@ type Program struct {
 func (p *Program) String() string {
 	var result strings.Builder
 	for _, stmt := range p.Statements {
-		result.WriteString(stmt.String() + "\n")
+		result.WriteString(stmt.String())
+		result.WriteString("\n")
 	}
 	return result.String()
 }
@@ -554,7 +558,9 @@ func (f FunctionStatement) String() string {
 	fmt.Fprintf(&str, "func %s(", f.Name)
 	str.WriteString(") {\n")
 	for _, stmt := range f.Body {
-		str.WriteString("  " + stmt.String() + "\n")
+		str.WriteString("  ")
+		str.WriteString(stmt.String())
+		str.WriteString("\n")
 	}
 	str.WriteString("}")
 	return str.String()
