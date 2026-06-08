@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -96,7 +95,6 @@ func (a *ArrayLiteral) String() string {
 	for _, elem := range a.Elements {
 		elements = append(elements, elem.String())
 	}
-	fmt.Printf("ArrayLiteral: %s\n", strings.Join(elements, ", "))
 	return fmt.Sprintf("[%s]", strings.Join(elements, ", "))
 }
 
@@ -574,53 +572,20 @@ func (f FunctionCallExpression) GetToken() lexer.Token {
 }
 
 func (f FunctionCallExpression) Eval(env *Environment) (Value, error) {
-	resolved, ok := env.Get(f.Name.String())
+	resolvedFn, ok := env.Get(f.Name.String())
 	if !ok {
 		return Value{}, NewRuntimeError(f, fmt.Sprintf("undefined function: %s", f.Name))
 	}
 
-	if resolved.Type == NativeFunction {
-		var args []Value
-		for _, arg := range f.Args {
-			v, err := arg.Eval(env)
-			if err != nil {
-				return Value{}, err
-			}
-			args = append(args, v)
-		}
-		nativeFn := resolved.NativeFunction
-		return nativeFn(args)
-	}
-
-	if resolved.Type != Function {
-		return Value{}, NewRuntimeError(f, fmt.Sprintf("function call to non-function type: %s", f.Name))
-	}
-
-	funcVal := resolved.Function
-	if len(f.Args) > len(funcVal.ArgNames) {
-		return Value{}, NewRuntimeError(f, fmt.Sprintf("too many arguments for function %s", f.Name))
-	} else if len(f.Args) < len(funcVal.ArgNames) {
-		return Value{}, NewRuntimeError(f, fmt.Sprintf("too few arguments for function %s", f.Name))
-	}
-
-	funcEnv := NewEnvironment(funcVal.Env)
+	resolvedArgs := make([]Value, 0, len(f.Args))
 	for i := 0; i < len(f.Args); i++ {
 		val, err := f.Args[i].Eval(env)
 		if err != nil {
 			return Value{}, err
 		}
-		funcEnv.Define(funcVal.ArgNames[i], val)
+		resolvedArgs = append(resolvedArgs, val)
 	}
-	for _, s := range funcVal.Body {
-		err := s.Execute(funcEnv)
-		var ret *ReturnSignal
-		if errors.As(err, &ret) {
-			return ret.Value, nil
-		} else if err != nil {
-			return Value{}, err
-		}
-	}
-	return Value{}, nil
+	return callFunction(f, resolvedFn, resolvedArgs)
 }
 
 func (f FunctionCallExpression) String() string {
@@ -693,5 +658,8 @@ func (e *RuntimeError) Format(fileName, source string) string {
 }
 
 func NewRuntimeError(n Node, msg string) error {
+	if n == nil {
+		return &RuntimeError{Msg: msg}
+	}
 	return &RuntimeError{Msg: msg, Token: n.GetToken()}
 }

@@ -1,7 +1,9 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 )
 
 type Environment struct {
@@ -19,7 +21,7 @@ func NewEnvironment(parent *Environment) *Environment {
 var defaultVars map[string]Value = map[string]Value{
 	"print": {
 		Type: NativeFunction,
-		NativeFunction: func(vs []Value) (Value, error) {
+		NativeFunction: func(n Node, vs []Value) (Value, error) {
 			if len(vs) < 1 {
 				return Value{}, fmt.Errorf("print expects at least 1 value")
 			}
@@ -32,6 +34,105 @@ var defaultVars map[string]Value = map[string]Value{
 			return Value{}, nil
 		},
 	},
+	"len": {
+		Type: NativeFunction,
+		NativeFunction: func(n Node, vs []Value) (Value, error) {
+			if len(vs) < 1 {
+				return Value{}, fmt.Errorf("len expects at least 1 value")
+			} else if len(vs) > 1 {
+				return Value{}, fmt.Errorf("len expects at most 1 value")
+			}
+
+			v := vs[0]
+			switch v.Type {
+			case Array:
+				return Value{Type: Number, Number: float64(len(v.Array))}, nil
+			case String:
+				return Value{Type: Number, Number: float64(len(v.Str))}, nil
+			default:
+				return Value{}, fmt.Errorf("value of type %s has no len", v.Type)
+			}
+		},
+	},
+	"push": {
+		Type: NativeFunction,
+		NativeFunction: func(n Node, vs []Value) (Value, error) {
+			if len(vs) < 2 {
+				return Value{}, fmt.Errorf("push expects at least 2 values")
+			}
+
+			arr := vs[0]
+			vs = vs[1:]
+
+			if arr.Type != Array {
+				return Value{}, fmt.Errorf("expected array, got: %s", arr.Type)
+			}
+
+			pushed := make([]Value, len(arr.Array)+len(vs))
+			copy(pushed, arr.Array)
+			copy(pushed[len(arr.Array):], vs)
+
+			return Value{Type: Array, Array: pushed}, nil
+		},
+	},
+	"map": {
+		Type: NativeFunction,
+		NativeFunction: func(n Node, vs []Value) (Value, error) {
+			if len(vs) < 2 {
+				return Value{}, fmt.Errorf("map expects at least 2 values")
+			}
+
+			arr := vs[0]
+			fn := vs[1]
+
+			if arr.Type != Array {
+				return Value{}, fmt.Errorf("expected array, got: %s", arr.Type)
+			}
+
+			res := make([]Value, 0, len(arr.Array))
+			for _, v := range arr.Array {
+				mapped, err := callFunction(n, fn, []Value{v})
+				if err != nil {
+					return Value{}, err
+				}
+				res = append(res, mapped)
+			}
+
+			return Value{Type: Array, Array: res}, nil
+		},
+	},
+}
+
+func callFunction(n Node, fn Value, args []Value) (Value, error) {
+	switch fn.Type {
+	case NativeFunction:
+		result, err := fn.NativeFunction(n, args)
+		if err != nil {
+			return Value{}, NewRuntimeError(n, err.Error())
+		}
+		return result, nil
+	case Function:
+		funcVal := fn.Function
+		if len(args) != len(funcVal.ArgNames) {
+			return Value{}, NewRuntimeError(n, fmt.Sprintf("expected %d arguments, got %d", len(funcVal.ArgNames), len(args)))
+		}
+		callEnv := NewEnvironment(funcVal.Env)
+		for i, name := range funcVal.ArgNames {
+			callEnv.Define(name, args[i])
+		}
+		for _, s := range funcVal.Body {
+			err := s.Execute(callEnv)
+			var ret *ReturnSignal
+			if errors.As(err, &ret) {
+				return ret.Value, nil
+			} else if err != nil {
+				return Value{}, err
+			}
+		}
+		return Value{}, nil
+	default:
+		return Value{}, NewRuntimeError(n, fmt.Sprintf("cannot call value of type %s", fn.Type))
+	}
 }
 
 func NewDefaultEnvironment() *Environment {
@@ -105,7 +206,7 @@ type Value struct {
 	Boolean        bool
 	Array          []Value
 	Function       Func
-	NativeFunction func([]Value) (Value, error)
+	NativeFunction func(Node, []Value) (Value, error)
 }
 
 func (v Value) String() string {
@@ -113,7 +214,7 @@ func (v Value) String() string {
 	case Void:
 		return "void"
 	case Number:
-		return fmt.Sprintf("%f", v.Number)
+		return strconv.FormatFloat(v.Number, 'f', -1, 64)
 	case String:
 		return v.Str
 	case Boolean:
