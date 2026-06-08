@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"errors"
+	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -13,6 +15,7 @@ import (
 )
 
 func main() {
+	log.SetFlags(0)
 	if len(os.Args) < 2 {
 		repl()
 		return
@@ -21,13 +24,13 @@ func main() {
 	path := os.Args[1]
 
 	if path == "fmt" {
-		handleFormat(os.Args)
+		handleFormat(os.Args[2:])
 		return
 	}
 
 	input, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading file: %s", err)
+		log.Fatalf("Error reading file: %s", err)
 		return
 	}
 	lex := lexer.New(string(input))
@@ -35,11 +38,10 @@ func main() {
 	if err != nil {
 		var lexerErr *lexer.LexerError
 		if errors.As(err, &lexerErr) {
-			fmt.Fprintln(os.Stderr, lexerErr.Format(path))
+			log.Fatalln(lexerErr.Format(path))
 		} else {
-			fmt.Fprintf(os.Stderr, "Generic Error: %v\n", err)
+			log.Fatalf("Generic Error: %v\n", err)
 		}
-		os.Exit(1)
 	}
 
 	p := parser.New(tokens)
@@ -48,13 +50,12 @@ func main() {
 		var parserErr *parser.ParserError
 		var runtimeErr *parser.RuntimeError
 		if errors.As(err, &runtimeErr) {
-			fmt.Fprintln(os.Stderr, runtimeErr.Format(path, string(input)))
+			log.Fatalln(runtimeErr.Format(path, string(input)))
 		} else if errors.As(err, &parserErr) {
-			fmt.Fprintln(os.Stderr, parserErr.Format(path))
+			log.Fatalln(parserErr.Format(path))
 		} else {
-			fmt.Fprintf(os.Stderr, "Generic Error: %v\n", err)
+			log.Fatalf("Generic Error: %v\n", err)
 		}
-		os.Exit(1)
 	}
 }
 
@@ -105,22 +106,31 @@ func repl() {
 }
 
 func handleFormat(args []string) {
-	if len(args) < 3 {
-		fmt.Fprintln(os.Stderr, "Not enough arguments to format")
-		os.Exit(1)
+	fs := flag.NewFlagSet("fmt", flag.ExitOnError)
+	write := fs.Bool("w", false, "Set this flag to replace the content of the file")
+
+	err := fs.Parse(args)
+	if err != nil {
+		log.Fatalf("Invalid arguments: %s\n", err)
 	}
 
-	path := args[2]
+	path := fs.Arg(0)
+	if path == "" {
+		log.Fatalf("A path is needed to format")
+	}
+
 	source, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading file: %s", err)
-		os.Exit(1)
+		log.Fatalf("Error reading file: %s", err)
 	}
 
 	fmtSource, err := formatter.Format(string(source))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error formatting source: %s", err)
-		os.Exit(1)
+		log.Fatalf("Error formatting source: %s", err)
 	}
-	fmt.Print(fmtSource)
+	if *write {
+		os.WriteFile(path, []byte(fmtSource), 0644)
+	} else {
+		fmt.Print(fmtSource)
+	}
 }
